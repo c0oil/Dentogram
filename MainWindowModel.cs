@@ -1,22 +1,74 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Markup;
 using AlternativeSoft.Sec.SecDailyUpdater.Clustering;
 using AngleSharp.Dom;
 using AngleSharp.Dom.Html;
 using AngleSharp.Parser.Html;
-using FuzzyString;
+using HTMLConverter;
 
 namespace Dentogram
 {
     public class MainWindowModel : ViewModelBase
     {
+        private int fileIndex;
         private List<string> files;
         private List<string> textes;
         private List<string> dataSets;
+
+        private List<int> shindels;
+        public List<int> Shindels
+        {
+            get { return shindels; }
+            set
+            {
+                shindels = value;
+                OnPropertyChanged(nameof(Shindels));
+            }
+        }
+
+        private int activeShindel;
+        public int ActiveShindel
+        {
+            get { return activeShindel; }
+            set
+            {
+                activeShindel = value;
+                OnPropertyChanged(nameof(ActiveShindel));
+
+                ClusterDistance.Shindel = value;
+            }
+        }
+
+        private List<ClusterDistance.Strategy> strateges;
+        public List<ClusterDistance.Strategy> Strateges
+        {
+            get { return strateges; }
+            set
+            {
+                strateges = value;
+                OnPropertyChanged(nameof(Strateges));
+            }
+        }
+
+        private ClusterDistance.Strategy activeStratege;
+        public ClusterDistance.Strategy ActiveStratege
+        {
+            get { return activeStratege; }
+            set
+            {
+                activeStratege = value;
+                OnPropertyChanged(nameof(ActiveStratege));
+            }
+        }
 
         private List<string> modes;
         public List<string> Modes
@@ -156,15 +208,50 @@ namespace Dentogram
             }
         }
 
+        private string filesDescription;
+        public string FilesDescription
+        {
+            get { return filesDescription; }
+            set
+            {
+                filesDescription = value;
+                OnPropertyChanged(nameof(FilesDescription));
+            }
+        }
+
         public MainWindowModel()
         {
             Modes = new List<string>(ClusterDistance.AllModes);
             ActiveMode = "JaccardDistance";
 
-            LoadFiles();
-            Start();
+            Strateges = new List<ClusterDistance.Strategy>()
+            {
+                ClusterDistance.Strategy.SingleLinkage,
+                ClusterDistance.Strategy.CompleteLinkage,
+                ClusterDistance.Strategy.AverageLinkageWPGMA,
+                ClusterDistance.Strategy.AverageLinkageUPGMA,
+            };
+            ActiveStratege = ClusterDistance.Strategy.AverageLinkageUPGMA;
+
+            var t = new List<int>();
+            for (int i = 1; i < 40; i++)
+            {
+                t.Add(i);
+            }
+
+            Shindels = t;
+            ActiveShindel = 5;
+
+            FilesDescription = "Wait. Loading files...";
+
+            Task.Run(() =>
+            {
+                LoadFiles();
+                Start();
+            });
         }
         
+        /*
         private HtmlParser htmlParser = new HtmlParser();
         private string LoadFile(string path)
         {
@@ -189,13 +276,28 @@ namespace Dentogram
                 }
             }
         }
+        */
+
+        private string LoadFile(string path)
+        {
+            using (var fileStream = new FileStream(path, FileMode.Open))
+            {
+                using (var gZipStream = new GZipStream(fileStream, CompressionMode.Decompress))
+                {
+                    using (var reader = new StreamReader(gZipStream))
+                    {
+                        return reader.ReadToEnd();
+                    }
+                }
+            }
+        }
         
-        private void LoadFiles()
+        public void LoadFiles()
         {
             ParsingText parcer = new ParsingText();
             var fileInfos = GetFiles().
                 Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedText = parcer.ParseTable(text) }).
-                Take(5000).
+                Take(1000).
                 Where(x => File.Exists(x.fileName)).
                 ToList();
             
@@ -210,7 +312,7 @@ namespace Dentogram
             files = notParced.Select(x => x.fileName).ToList();
             dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
 
-            //HashSet<string> hash = new HashSet<string>(textes);
+            FilesDescription = $"All files: {fileInfos.Count}; Not parced files: {notParced.Count}";
         }
 
         public void Start()
@@ -221,7 +323,7 @@ namespace Dentogram
             }
 
             ClusteringModel clusteringModel = new ClusteringModel(dataSets, textes, files);
-            Clusters clusters = clusteringModel.ExecuteClustering(ClusterDistance.Strategy.AverageLinkageUPGMA, 1);
+            Clusters clusters = clusteringModel.ExecuteClustering(ActiveStratege, 1);
             
             Items = new List<Node> { BuildRootNode(clusters.FirstOrDefault()) };
         }
@@ -336,31 +438,38 @@ namespace Dentogram
 
         public static IEnumerable<string> GetFiles()
         {
-            using (var fileStream = new FileStream(@"D:\work\Dentogram\pathesExt.txt", FileMode.Open))
+            using (var fileStream = new FileStream(FileManager.FileNames, FileMode.Open))
             {
                 using (var reader = new StreamReader(fileStream))
                 {
                     string line = reader.ReadLine();
                     while (line != null)
                     {
-                        yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        //yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        yield return line;
                         line = reader.ReadLine();
                     }
                 }
             }
         }
 
-        public static IEnumerable<string> GetTextes()
+        public IEnumerable<string> GetTextes()
         {
+            fileIndex = 1;
             ParsingText parcer = new ParsingText();
-            using (var fileStream = new FileStream(@"D:\work\Dentogram\textes.txt", FileMode.Open))
+            using (var fileStream = new FileStream(FileManager.FileTextes, FileMode.Open))
             {
                 using (var reader = new StreamReader(fileStream))
                 {
                     string line = parcer.TrimForParsing(reader.ReadLine());
                     while (line != null)
                     {
+                        fileIndex++;
                         yield return line;
+                        if (fileIndex % 100 == 0)
+                        {
+                            FilesDescription = $"Loading files[{fileIndex}]...";
+                        }
                         line = parcer.TrimForParsing(reader.ReadLine());
                     }
                 }
@@ -460,5 +569,27 @@ namespace Dentogram
 
             Children = list;
         }
+    }
+
+    public class WebBrowserBehavior
+    {
+        public static readonly DependencyProperty BodyProperty =
+            DependencyProperty.RegisterAttached("Body", typeof(string), typeof(WebBrowserBehavior),
+                new PropertyMetadata(OnChanged));
+
+        public static string GetBody(DependencyObject dependencyObject)
+        {
+            return (string)dependencyObject.GetValue(BodyProperty);
+        }
+
+        public static void SetBody(DependencyObject dependencyObject, string body)
+        {
+            dependencyObject.SetValue(BodyProperty, body);
+        }
+
+        private static void OnChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            WebBrowser wb = (WebBrowser)d;
+            wb.NavigateToString((string)e.NewValue);}
     }
 }

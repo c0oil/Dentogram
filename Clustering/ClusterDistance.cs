@@ -71,6 +71,7 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
         }
 
         public static string Mode = "JaccardDistance";
+        public static int Shindel = 5;
 
         public static List<string> AllModes = new List<string>
             {
@@ -111,7 +112,7 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
                 case "JaroDistance":
                     return x.JaroDistance(y);
                 case "JaccardDistance":
-                    return JaccardDistance(x, y, 5);
+                    return JaccardDistance(x, y, Shindel);
                     //return x.JaccardDistance(y);
                 case "HammingDistance":
                     return x.HammingDistance(y);
@@ -140,7 +141,7 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
                     return distance;
 
                 case "JaccardIndex":
-                    return JaccardIndex(x, y, 5);
+                    return JaccardIndex(x, y, Shindel);
                     //return x.JaccardIndex(y);
                 case "SorensenDiceIndex":
                     return x.SorensenDiceIndex(y);
@@ -216,26 +217,6 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
             return stringList;
         }
 
-        /*
-        private static List<string> ListNGrams(List<string> words, int n)
-        {
-            List<string> stringList = new List<string>();
-            if (n > words.Count)
-                return (List<string>) null;
-            if (n == words.Count)
-            {
-                stringList.Add(words.JoinStrings(" "));
-                return stringList;
-            }
-
-            for (int startIndex = 0; startIndex < words.Count - n; startIndex++)
-            {
-                stringList.Add(words.Skip(startIndex).Take(n).JoinStrings(" "));
-            }
-            return stringList;
-        }
-        */
-
         private static double JaccardDistance(string source, string target, int n)
         {
             return 1.0 - JaccardIndex(source, target, n);
@@ -251,7 +232,7 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
                 return 0;
             }
 
-            return Convert.ToDouble(g1.Intersect(g2).Count()) / Convert.ToDouble(minCount);
+            return Convert.ToDouble(g1.Intersect(g2).Count()) / Convert.ToDouble(g1.Union(g2).Count());
         }
     }
 }

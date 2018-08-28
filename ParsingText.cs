@@ -11,13 +11,8 @@ namespace Dentogram
     {
         private readonly Regex regex = new Regex(@"1\s?[\.\)]?\s?NAMES? OF REPORTING PERSONS?[\s\S]+?\d+[\.\)]?\s+TYPE OF REPORTING PERSON", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        // 1 NAME OF REPORTING PERSONS I.R.S. IDENTIFICATION NOS. OF ABOVE PERSONS (ENTITIES ONLY)
-        //private readonly Regex regex2 = new Regex(@"(NAMES? ?OF ?REPORTING ?[\s\S]{0,100}PERSONS?(?: ?ENTITIES ONLY)? ?[\.\,]*)[\s\S]{0,160}?2\.? ?CHECK", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex regex1 = new Regex(@"(NAMES?(?: ?OF ?REPORTING| ?AND ?IRS) ?[\s\S]{0,100}PERSONS?(?: ?ENTITIES ONLY)? ?[\.\,]*)[\s\S]{0,400}?(?:2\.? ?CHECK|CHECK THE APPROPRIATE)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex regex2 = new Regex(@"(CUSIP #?[\w]+ ITEM 1 REPORTING PERSON) [\s\S]{0,200}? ITEM \d", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-        //(1)  NAME AND IRS NUMBER OF REPORTING PERSONS
-        // (2)  CHECK
+        private readonly Regex regex1 = new Regex(@"(NAMES?(?: ?OF ?REPORTING| ?AND ?IRS) ?[\s\S]{0,100}PERSONS?(?: ?ENTITIES ONLY)? ?[\.\,]*)[\s\S]{0,400}?(?:2\.? ?CHECK|CHECK THE APPROPRIATE|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex regex2 = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) [\s\S]{0,200}? ITEM \d", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly Regex regex3 = new Regex(@"NAMES?(?: ?OF)? ?REPORTING", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         //private readonly Regex regexTrim = new Regex(@"\D[\,\.](?=\D)|\D[\,\.](?=\d)|\d[\,\.](?=\D)|_|[^\w\s\.,]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -83,14 +78,6 @@ namespace Dentogram
             */
             //return matches.OfType<Match>().FirstOrDefault()?.Value ?? string.Empty;
         }
-
-        /*
-        private string TrimSigns(string text)
-        {
-            string trimText = Regex.Replace(text, @"(?<=\D)[\,\.](?=\D)|(?<=\D)[\,\.](?=\d)|(?<=\d)[\,\.](?=\D)|_|[^\w\s\.,]", "");
-            return trimText;
-        }
-        */
 
         private string TrimSigns(string text)
         {

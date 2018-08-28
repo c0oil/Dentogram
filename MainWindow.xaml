@@ -6,7 +6,7 @@
         xmlns:ig="http://schemas.infragistics.com/xaml"
         xmlns:dentogram="clr-namespace:Dentogram"
         mc:Ignorable="d" d:DataContext="{d:DesignInstance dentogram:MainWindowModel}"
-        Title="MainWindow" Height="900" Width="1200">
+        Title="MainWindow" Height="1200" Width="1900">
 
   <Grid x:Name="pnlHide" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
     <Grid.RowDefinitions>
@@ -19,7 +19,10 @@
 
     <StackPanel Grid.Row="0" Orientation="Horizontal">
       <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding ActiveMode}" Width="300"/>
+      <ComboBox ItemsSource="{Binding Strateges}" SelectedItem="{Binding ActiveStratege}" Width="300"/>
+      <ComboBox ItemsSource="{Binding Shindels}" SelectedItem="{Binding ActiveShindel}" Width="80"/>
       <Button Click="ButtonBase_OnClick" Content="REFRESH" Width="100"/>
+      <TextBlock Text="{Binding FilesDescription}"/>
     </StackPanel>
 
     <Grid Grid.Row="1" Margin="0,0,17,0">
@@ -43,11 +46,14 @@
 
     <ScrollViewer Grid.Row="2">
       <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
           <ColumnDefinition />
           <ColumnDefinition />
         </Grid.ColumnDefinitions>
-
+<!--
         <StackPanel Grid.Column="0">
           <TextBox IsReadOnly="True"
                    ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -61,6 +67,12 @@
                    TextWrapping="Wrap"
                    Text="{Binding Text2}" />
         </StackPanel>
+        -->
+
+        <WebBrowser dentogram:WebBrowserBehavior.Body="{Binding Text1}" Grid.Column="0" />
+      
+        <WebBrowser dentogram:WebBrowserBehavior.Body="{Binding Text2}" Grid.Column="1"/>
+
       </Grid>
     </ScrollViewer >
 

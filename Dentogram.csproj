@@ -42,6 +42,9 @@
     <Reference Include="FuzzyString">
       <HintPath>..\packages\FuzzyString.1.0.0\lib\FuzzyString.dll</HintPath>
     </Reference>
+    <Reference Include="HtmlToXamlConverter, Version=1.0.5727.24510, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\HtmlToXamlConverter.1.0.5727.24510\lib\net45\HtmlToXamlConverter.dll</HintPath>
+    </Reference>
     <Reference Include="InfragisticsWPF4.Controls.Charts.XamGauge.v13.1">
       <HintPath>..\..\..\..\References\Infragistics\InfragisticsWPF4.Controls.Charts.XamGauge.v13.1.dll</HintPath>
     </Reference>
@@ -168,6 +171,7 @@
     <Compile Include="Clustering\Clusters.cs" />
     <Compile Include="Clustering\DissimilarityMatrix.cs" />
     <Compile Include="Clustering\Pattern.cs" />
+    <Compile Include="FileManager.cs" />
     <Compile Include="ParsingText.cs" />
     <Compile Include="ViewModelBase.cs" />
     <Page Include="MainWindow.xaml">
