@@ -1,19 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
-using System.Windows.Markup;
-using AlternativeSoft.Sec.SecDailyUpdater.Clustering;
-using AngleSharp.Dom;
-using AngleSharp.Dom.Html;
-using AngleSharp.Parser.Html;
-using HTMLConverter;
+using Dentogram.Clustering;
 
 namespace Dentogram
 {
@@ -226,12 +219,12 @@ namespace Dentogram
 
             Strateges = new List<ClusterDistance.Strategy>()
             {
-                ClusterDistance.Strategy.SingleLinkage,
-                ClusterDistance.Strategy.CompleteLinkage,
-                ClusterDistance.Strategy.AverageLinkageWPGMA,
-                ClusterDistance.Strategy.AverageLinkageUPGMA,
+                ClusterDistance.Strategy.MinLinkage,
+                ClusterDistance.Strategy.MaxLinkage,
+                ClusterDistance.Strategy.AverageLinkage,
+                ClusterDistance.Strategy.AverageLinkageWeighted,
             };
-            ActiveStratege = ClusterDistance.Strategy.AverageLinkageUPGMA;
+            ActiveStratege = ClusterDistance.Strategy.AverageLinkageWeighted;
 
             var t = new List<int>();
             for (int i = 1; i < 40; i++)
@@ -297,7 +290,7 @@ namespace Dentogram
             ParsingText parcer = new ParsingText();
             var fileInfos = GetFiles().
                 Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedText = parcer.ParseTable(text) }).
-                Take(1000).
+                //Take(1000).
                 Where(x => File.Exists(x.fileName)).
                 ToList();
             
@@ -322,8 +315,8 @@ namespace Dentogram
                 return;
             }
 
-            ClusteringModel clusteringModel = new ClusteringModel(dataSets, textes, files);
-            Clusters clusters = clusteringModel.ExecuteClustering(ActiveStratege, 1);
+            ClusteringTreeModel clusteringModel = new ClusteringTreeModel(dataSets, textes, files);
+            ClusterNodeCollection clusters = clusteringModel.ExecuteClustering(ActiveStratege, 1);
             
             Items = new List<Node> { BuildRootNode(clusters.FirstOrDefault()) };
         }
@@ -346,38 +339,38 @@ namespace Dentogram
         }
         */
 
-        private Node BuildRootNode(Cluster cluster)
+        private Node BuildRootNode(ClusterNode cluster)
         {
             Node child0 = null;
             Node child1 = null;
             
-            if (cluster.SubClustersCount == 0)
+            if (cluster.NodesCount == 0)
             {
-                if (cluster.PatternsCount == 1)
+                if (cluster.LeafsCount == 1)
                 {
-                    return GetNodeFromCluster(cluster.Patterns[0]);
+                    return GetNodeFromCluster(cluster.Leafs[0]);
                 }
-                if (cluster.PatternsCount == 2)
+                if (cluster.LeafsCount == 2)
                 {
-                    child0 = GetNodeFromCluster(cluster.Patterns[0]);
-                    child1 = GetNodeFromCluster(cluster.Patterns[1]);
+                    child0 = GetNodeFromCluster(cluster.Leafs[0]);
+                    child1 = GetNodeFromCluster(cluster.Leafs[1]);
                 }
             }
-            else if (cluster.SubClustersCount == 1)
+            else if (cluster.NodesCount == 1)
             {
-                child0 = GetNodeFromCluster(cluster.Patterns[0]);
-                child1 = BuildRootNode(cluster.SubClusters[0]);
+                child0 = GetNodeFromCluster(cluster.Leafs[0]);
+                child1 = BuildRootNode(cluster.Nodes[0]);
             }
             else
             {
-                child0 = BuildRootNode(cluster.SubClusters[0]);
-                child1 = BuildRootNode(cluster.SubClusters[1]);
+                child0 = BuildRootNode(cluster.Nodes[0]);
+                child1 = BuildRootNode(cluster.Nodes[1]);
             }
 
             return Create(child0, child1, cluster.Distance.ToString("F"));
         }
 
-        private Node GetNodeFromCluster(Pattern pattern)
+        private Node GetNodeFromCluster(ClusterLeaf pattern)
         {
             return new Node(pattern.FileName) { Text = pattern.FileText };
         }

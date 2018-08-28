@@ -18,9 +18,9 @@
     </Grid.RowDefinitions>
 
     <StackPanel Grid.Row="0" Orientation="Horizontal">
-      <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding ActiveMode}" Width="300"/>
-      <ComboBox ItemsSource="{Binding Strateges}" SelectedItem="{Binding ActiveStratege}" Width="300"/>
+      <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding ActiveMode}" Width="200"/>
       <ComboBox ItemsSource="{Binding Shindels}" SelectedItem="{Binding ActiveShindel}" Width="80"/>
+      <ComboBox ItemsSource="{Binding Strateges}" SelectedItem="{Binding ActiveStratege}" Width="200"/>
       <Button Click="ButtonBase_OnClick" Content="REFRESH" Width="100"/>
       <TextBlock Text="{Binding FilesDescription}"/>
     </StackPanel>

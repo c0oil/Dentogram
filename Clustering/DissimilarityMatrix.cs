@@ -2,24 +2,23 @@
 using System.Collections.Concurrent;
 using System.Linq;
 
-namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
+namespace Dentogram.Clustering
 {
     public class DissimilarityMatrix
     {
-        // list to store distance values from a pair of clusters Dictionary<ClusterPair, Distance>
-        private readonly ConcurrentDictionary<ClusterPair, double> distanceMatrix;
+        private readonly ConcurrentDictionary<ClusterNodePair, double> distanceMatrix;
 
         public DissimilarityMatrix()
         {
-            distanceMatrix = new ConcurrentDictionary<ClusterPair, double>(new ClusterPair.EqualityComparer());
+            distanceMatrix = new ConcurrentDictionary<ClusterNodePair, double>(new ClusterNodePair.EqualityComparer());
         }
 
-        public void AddClusterPairAndDistance(ClusterPair clusterPair, double distance)
+        public void AddClusterPairAndDistance(ClusterNodePair clusterPair, double distance)
         {
             distanceMatrix.TryAdd(clusterPair, distance);
         }
 
-        public void RemoveClusterPair(ClusterPair clusterPair)
+        public void RemoveClusterPair(ClusterNodePair clusterPair)
         {
             double outvalue;
 
@@ -29,23 +28,22 @@ namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
             }
             else
             {
-                distanceMatrix.TryRemove(new ClusterPair(clusterPair.Cluster2, clusterPair.Cluster1), out outvalue);
+                distanceMatrix.TryRemove(new ClusterNodePair(clusterPair.Cluster2, clusterPair.Cluster1), out outvalue);
             }
         }
 
         // get the closest cluster pair (i.e., min cluster pair distance). it is also important to reduce computational time
-        public ClusterPair GetClosestClusterPair()
+        public ClusterNodePair GetClosestClusterPair()
         {
             return distanceMatrix.Aggregate((target, x) => x.Value > target.Value ? target : x).Key;
         }
 
         // get the distance value from a cluster pair. THIS METHOD DEPENDS ON THE EqualityComparer IMPLEMENTATION IN ClusterPair CLASS
-        public double ReturnClusterPairDistance(ClusterPair clusterPair)
+        public double ReturnClusterPairDistance(ClusterNodePair clusterPair)
         {
-            // look in distance matrix if there is an input of cluster1 and cluster2 (remember that ClusterPair has two childs cluster1 and cluster2)
             return distanceMatrix.ContainsKey(clusterPair) 
                 ? distanceMatrix[clusterPair] 
-                : distanceMatrix[new ClusterPair(clusterPair.Cluster2, clusterPair.Cluster1)];
+                : distanceMatrix[new ClusterNodePair(clusterPair.Cluster2, clusterPair.Cluster1)]; // Reverse
         }
     }
 }

@@ -2,48 +2,51 @@
 using System.Collections.Generic;
 using System.Linq;
 using FuzzyString;
-using Microsoft.Practices.ObjectBuilder2;
 
-namespace AlternativeSoft.Sec.SecDailyUpdater.Clustering
+namespace Dentogram.Clustering
 {
     public static class ClusterDistance
     {
         public enum Strategy
         {
-            SingleLinkage,
-            CompleteLinkage,
-            AverageLinkageWPGMA,
-            AverageLinkageUPGMA,
+            //SingleLinkage,
+            MinLinkage,
+            //CompleteLinkage,
+            MaxLinkage,
+            //AverageLinkageWPGMA,
+            AverageLinkage,
+            //AverageLinkageUPGMA,
+            AverageLinkageWeighted,
         }
 
         // this method compute distance between 2 singleton clusters
-        public static double ComputeDistance(Cluster cluster1, Cluster cluster2)
+        public static double ComputeDistance(ClusterNode cluster1, ClusterNode cluster2)
         {
             // if singleton cluster, then compute distance between patterns
-            return cluster1.PatternsCount == 1 && cluster2.PatternsCount == 1
-                ? GetDistance(cluster1.PatternAt(0).Attribute, cluster2.PatternAt(0).Attribute)
+            return cluster1.LeafsCount == 1 && cluster2.LeafsCount == 1
+                ? GetDistance(cluster1.LeafAt(0).Value, cluster2.LeafAt(0).Value)
                 : 0;
         }
 
         // this method compute distance between clusters thas has subclusters (cluster2 represents the new cluster)
-        public static double ComputeDistance(Cluster cluster1, Cluster cluster2, DissimilarityMatrix dissimilarityMatrix, Strategy strategy)
+        public static double ComputeDistance(ClusterNode node1, ClusterNode node2, DissimilarityMatrix dissimilarityMatrix, Strategy strategy)
         {
-            Cluster cluster21 = cluster2.SubClusterAt(0);
-            Cluster cluster22 = cluster2.SubClusterAt(1);
-            double distance1 = dissimilarityMatrix.ReturnClusterPairDistance(new ClusterPair(cluster1, cluster21));
-            double distance2 = dissimilarityMatrix.ReturnClusterPairDistance(new ClusterPair(cluster1, cluster22));
+            ClusterNode node21 = node2.NodeAt(0);
+            ClusterNode node22 = node2.NodeAt(1);
+            double distance1 = dissimilarityMatrix.ReturnClusterPairDistance(new ClusterNodePair(node1, node21));
+            double distance2 = dissimilarityMatrix.ReturnClusterPairDistance(new ClusterNodePair(node1, node22));
 
             switch (strategy)
             {
-                case Strategy.SingleLinkage:
+                case Strategy.MinLinkage:
                     return distance1 < distance2 ? distance1 : distance2;
-                case Strategy.CompleteLinkage:
+                case Strategy.MaxLinkage:
                     return distance1 > distance2 ? distance1 : distance2;
-                case Strategy.AverageLinkageWPGMA:
+                case Strategy.AverageLinkage:
                     return (distance1 + distance2) / 2;
-                case Strategy.AverageLinkageUPGMA:
-                    return distance1 * cluster21.TotalQuantityOfPatterns / cluster2.TotalQuantityOfPatterns + 
-                           distance2 * cluster22.TotalQuantityOfPatterns / cluster2.TotalQuantityOfPatterns;
+                case Strategy.AverageLinkageWeighted:
+                    return distance1 * node21.TotalLeafsCount / node2.TotalLeafsCount + 
+                           distance2 * node22.TotalLeafsCount / node2.TotalLeafsCount;
                 default:
                     return 0;
             }
