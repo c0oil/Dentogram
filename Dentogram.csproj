@@ -176,6 +176,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AhoCorasickAlgorithm.cs" />
     <Compile Include="Clustering\ClusterDistance.cs" />
     <Compile Include="Clustering\ClusteringTreeModel.cs" />
     <Compile Include="Clustering\ClusterLeaf.cs" />

@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Dentogram.Clustering;
 
 namespace Dentogram
@@ -15,6 +17,7 @@ namespace Dentogram
         private int fileIndex;
         private List<string> files;
         private List<string> textes;
+        private List<string> parsedRegions;
         private List<string> dataSets;
 
         private List<int> shindels;
@@ -102,11 +105,13 @@ namespace Dentogram
                 if (IsCheckedText1)
                 {
                     Header1 = SelectedNode.Name;
+                    ClusterText1 = SelectedNode.Text;
                     Text1 = LoadFile(SelectedNode.Name);
                 }
                 else if (IsCheckedText2)
                 {
                     Header2 = SelectedNode.Name;
+                    ClusterText2 = SelectedNode.Text;
                     Text2 = LoadFile(SelectedNode.Name);
                 }
             }
@@ -179,6 +184,28 @@ namespace Dentogram
             }
         }
 
+        private string clusterText1;
+        public string ClusterText1
+        {
+            get { return clusterText1; }
+            set
+            {
+                clusterText1 = value;
+                OnPropertyChanged(nameof(ClusterText1));
+            }
+        }
+
+        private string clusterText2;
+        public string ClusterText2
+        {
+            get { return clusterText2; }
+            set
+            {
+                clusterText2 = value;
+                OnPropertyChanged(nameof(ClusterText2));
+            }
+        }
+
         private string text1;
         public string Text1
         {
@@ -224,7 +251,7 @@ namespace Dentogram
                 ClusterDistance.Strategy.AverageLinkage,
                 ClusterDistance.Strategy.AverageLinkageWeighted,
             };
-            ActiveStratege = ClusterDistance.Strategy.AverageLinkageWeighted;
+            ActiveStratege = ClusterDistance.Strategy.AverageLinkage;
 
             var t = new List<int>();
             for (int i = 1; i < 40; i++)
@@ -284,18 +311,93 @@ namespace Dentogram
                 }
             }
         }
-        
+
+        private void LoadFiles()
+        {
+            try
+            {
+
+
+            ParsingText parcer = new ParsingText();
+            var fileInfos = GetFiles().
+                Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseTableNew(text) }).
+                Take(2000).
+                Where(x => File.Exists(x.fileName)).
+                ToList();
+            
+            
+            var parced = fileInfos.
+                Where(x => 
+                    !string.IsNullOrEmpty(x.text) && 
+                    !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                ToList();
+
+            var notParced = fileInfos.
+                Where(x => 
+                    !string.IsNullOrEmpty(x.text) && 
+                    string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                ToList();
+
+                /*
+            notParced = notParced.
+                Select(x => new { x.fileName, x.text, parsedResult = parcer.ParseTable(x.text) }).
+                Where(x => 
+                    !string.IsNullOrEmpty(x.text) && 
+                    !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                ToList();
+                */
+
+
+            HashSet<string> namePersonHash= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonPrefix));
+            HashSet<string> names= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonValue));
+            //return;
+
+
+            textes = notParced.Select(x => x.text).ToList();
+            files = notParced.Select(x => x.fileName).ToList();
+            //parsedRegions = notParced.Select(x => x.parsedResult.Region).ToList();
+            //dataSets = notParced.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
+            parsedRegions = notParced.Select(x => x.text).ToList();
+            dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
+
+            FilesDescription = $"All files: {fileInfos.Count}; Not parced files: {notParced.Count}";
+
+            }
+            catch (Exception e)
+            {
+                Debug.Fail("LoadFiles");
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        /*
         public void LoadFiles()
         {
             ParsingText parcer = new ParsingText();
             var fileInfos = GetFiles().
-                Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedText = parcer.ParseTable(text) }).
-                //Take(1000).
+                Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseTable(text) }).
+                Take(4000).
                 Where(x => File.Exists(x.fileName)).
                 ToList();
             
-            var notParced = fileInfos.Where(x => !string.IsNullOrEmpty(x.text) && string.IsNullOrEmpty(x.parsedText[0])).ToList();
+            var notParced = fileInfos.
+                Where(x => 
+                    !string.IsNullOrEmpty(x.text) && 
+                    !string.IsNullOrEmpty(x.parsedResult.NamePersonValue) && 
+                    string.IsNullOrEmpty(x.parsedResult.AggregatedAmountValue)).
+                ToList();
             
+            var parced = fileInfos.
+                Where(x => 
+                    !string.IsNullOrEmpty(x.text) && 
+                    !string.IsNullOrEmpty(x.parsedResult.NamePersonValue) && 
+                    !string.IsNullOrEmpty(x.parsedResult.AggregatedAmountValue)).
+                ToList();
+
+            HashSet<string> namePersonHash= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonPrefix));
+            //HashSet<string> aggregatedAmountHash= new HashSet<string>(parced.Select(x => x.parsedResult.AggregatedAmountPrefix));
+
             //var fileInfos1 = notParced.Select(x => new { x.fileName, x.text, parsedText = parcer.ParseTableTest(x.text) }).Where(x => !string.IsNullOrEmpty(x.parsedText[0])).ToList();
 
             //var tt = notParced.Select(x => x.text).ToArray();
@@ -303,19 +405,23 @@ namespace Dentogram
             
             textes = notParced.Select(x => x.text).ToList();
             files = notParced.Select(x => x.fileName).ToList();
-            dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
+            //dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
+            parsedRegions = notParced.Select(x => x.parsedResult.Region).ToList();
+            dataSets = notParced.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
 
             FilesDescription = $"All files: {fileInfos.Count}; Not parced files: {notParced.Count}";
         }
+        */
 
         public void Start()
         {
+
             if (textes.Count < 3)
             {
                 return;
             }
 
-            ClusteringTreeModel clusteringModel = new ClusteringTreeModel(dataSets, textes, files);
+            ClusteringTreeModel clusteringModel = new ClusteringTreeModel(dataSets, parsedRegions, textes, files);
             ClusterNodeCollection clusters = clusteringModel.ExecuteClustering(ActiveStratege, 1);
             
             Items = new List<Node> { BuildRootNode(clusters.FirstOrDefault()) };
@@ -372,7 +478,7 @@ namespace Dentogram
 
         private Node GetNodeFromCluster(ClusterLeaf pattern)
         {
-            return new Node(pattern.FileName) { Text = pattern.FileText };
+            return new Node(pattern.FileName) { Text = pattern.Region };
         }
 
         private Node Create(Node child0, Node child1, string name)

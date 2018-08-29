@@ -19,17 +19,15 @@ namespace Dentogram.Clustering
             AverageLinkageWeighted,
         }
 
-        // this method compute distance between 2 singleton clusters
-        public static double ComputeDistance(ClusterNode cluster1, ClusterNode cluster2)
+        public static double ComputeLeafDistance(ClusterNode node1, ClusterNode node2)
         {
-            // if singleton cluster, then compute distance between patterns
-            return cluster1.LeafsCount == 1 && cluster2.LeafsCount == 1
-                ? GetDistance(cluster1.LeafAt(0).Value, cluster2.LeafAt(0).Value)
+            return node1.LeafsCount == 1 && node2.LeafsCount == 1
+                ? GetDistance(node1.LeafAt(0).Value, node2.LeafAt(0).Value)
                 : 0;
         }
 
         // this method compute distance between clusters thas has subclusters (cluster2 represents the new cluster)
-        public static double ComputeDistance(ClusterNode node1, ClusterNode node2, DissimilarityMatrix dissimilarityMatrix, Strategy strategy)
+        public static double ComputeNodeDistance(ClusterNode node1, ClusterNode node2, DissimilarityMatrix dissimilarityMatrix, Strategy strategy)
         {
             ClusterNode node21 = node2.NodeAt(0);
             ClusterNode node22 = node2.NodeAt(1);
@@ -102,9 +100,6 @@ namespace Dentogram.Clustering
 
         private static double GetDistance(string x, string y)
         {
-            try
-            {
-                
             double distance;
             switch (Mode)
             {
@@ -158,12 +153,6 @@ namespace Dentogram.Clustering
                     return Math.Max(x.Length, y.Length) - x.LongestCommonSubsequence(y)?.Length ?? 0;
             }
 
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                throw;
-            }
             return 0;
         }
         
@@ -199,14 +188,17 @@ namespace Dentogram.Clustering
 
             List<string> stringList = new List<string>();
             if (n > wordsCount)
-                return (List<string>) null;
+            {
+                stringList.Add(words);
+                return stringList;
+            }
             if (n == wordsCount)
             {
                 stringList.Add(words);
                 return stringList;
             }
 
-            int prevSpaceIndex = spaces[0];
+            int prevSpaceIndex = 0;
             for (int spaceIndex = 1; spaceIndex < wordsCount - n + 2; spaceIndex++)
             {
                 int iStart = spaces[prevSpaceIndex] + 1;

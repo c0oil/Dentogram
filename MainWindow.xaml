@@ -33,14 +33,14 @@
 
       <StackPanel Grid.Column="0">
         <CheckBox HorizontalAlignment="Center" IsChecked="{Binding IsCheckedText1}" />
-        <TextBox IsReadOnly="True" 
-                 Text="{Binding Header1}" />
+        <TextBox IsReadOnly="True" Text="{Binding Header1}" />
+        <TextBox IsReadOnly="True" Text="{Binding ClusterText1}" TextWrapping="Wrap" Height="100"/>
       </StackPanel>
 
       <StackPanel Grid.Column="1">
         <CheckBox HorizontalAlignment="Center" IsChecked="{Binding IsCheckedText2}" />
-        <TextBox IsReadOnly="True" 
-                 Text="{Binding Header2}" />
+        <TextBox IsReadOnly="True" Text="{Binding Header2}" />
+        <TextBox IsReadOnly="True" Text="{Binding ClusterText2}" TextWrapping="Wrap" Height="100"/>
       </StackPanel>
     </Grid>
 

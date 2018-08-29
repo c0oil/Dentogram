@@ -7,5 +7,6 @@
 
         public string FileName { get; set; }
         public string FileText { get; set; }
+        public string Region { get; set; }
     }
 }
