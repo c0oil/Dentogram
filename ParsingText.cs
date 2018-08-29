@@ -15,19 +15,21 @@ namespace Dentogram
             public string NamePersonValue;
             public string AggregatedAmountPrefix;
             public string AggregatedAmountValue;
+            public string AggregatedAmountPostfix;
             public string Region;
         }
 
         private readonly StringSearch namePersonPrefixSearch = new StringSearch(PrefixWorkbook.NamePersonPrefixes);
         private readonly StringSearch namePersonPostfixSearch = new StringSearch(PrefixWorkbook.NamePersonPostfixes);
 
+        private readonly StringSearch aggregatedAmountPrefixSearch = new StringSearch(PrefixWorkbook.AggregatedAmountPrefixes);
+        private readonly StringSearch aggregatedAmountPostfixSearch = new StringSearch(PrefixWorkbook.AggregatedAmountPostfixes);
+
         private readonly Regex namePersonRegex1 = new Regex(@"(NAMES?(?: ?OF ?REPORTING| ?AND ?IRS) ?[\s\S]{0,100}PERSONS?(?: ?ENTITIES ONLY)?)([\s\S]{0,400}?)2 ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex namePersonRegex2 = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?) ITEM \d", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         
-        //9AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON 291,065
-        //10CHECK BOX IF THE AGGREGATE
-        private readonly Regex aggregatedAmountRegex1 = new Regex(@"((?:9|11) ?AGGREGATED? ?AMOUN?T ?(?:[\s\S]{0,100}PERSONS?(?: ?DISCRETIONARY ?NONDISCRETIONARY ?ACCOUNTS)?|BENEFICIALLY ?OWNED)) ?((?:\d+(?:\,\d+)*)|\*|NONE|SEE ROW 6 ABOVE)[\s\S]*?(?:10|12)? ?(?:CHECK(?: ?BOX)? ?IF(?: ?THE)? ?AGGREGATE|AGGREGATE ?AMOUNT)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex aggregatedAmountRegex2 = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) ITEM 11", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex aggregatedAmountRegex1 = new Regex(@"((?:9|11) ?AGGREGATED? ?AMOUN?T ?(?:[\s\S]{0,100}PERSONS?(?: ?DISCRETIONARY ?NONDISCRETIONARY ?ACCOUNTS)?|BENEFICIALLY ?OWNED)) ?((?:\d+(?:\,\d+)*)|\*|NONE|SEE ROW 6 ABOVE)[\s\S]*?((?:10|12)? ?(?:CHECK(?: ?BOX)? ?IF(?: ?THE)? ?AGGREGATE|AGGREGATE ?AMOUNT))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex aggregatedAmountRegex2 = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) (ITEM 11)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
 
         //private readonly Regex percentOwnedRegex1 = new Regex(@"(?:11|13) ?PERCENT(?:AGE)?\s+OF\s+CLASS\s+REPRESENTED\s+BY\s+AMOUNT\s+(?:IN|OF)\s+ROW(?:\s+\(?\d\d?\)?)?(?:\s+\(SEE\s+ITEM\s+\d+\))?\s+\b((?:\d+(?:\.\d+)?)|\*)(?:\s*%)?\b[\s\S]*?\b(?:12|14)\b\b\s*[\.\)]?\s*TYPE", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -51,48 +53,37 @@ namespace Dentogram
             return trimText;
         }
 
-        public ParseResult ParseTableNew(string trimText)
+        public ParseResult ParseBySearch(string trimText)
         {
             try
             {
-                StringSearchResult namePersonPrefixMatch = namePersonPrefixSearch.FindAll(trimText).GroupBy(x => x.Index).FirstOrDefault()?.Last() ?? StringSearchResult.Empty;
-                StringSearchResult namePersonValueMatch = new StringSearchResult();
-                if (!namePersonPrefixMatch.IsEmpty)
-                {
-                    int iNamePersonValue = namePersonPrefixMatch.Index + namePersonPrefixMatch.Keyword.Length;
-                    StringSearchResult namePersonPostfixMatch = namePersonPostfixSearch.FindFirst(trimText.Substring(iNamePersonValue, PrefixWorkbook.NamePersonMaxLength + PrefixWorkbook.NamePersonPostfixMaxLength));
-                    if (!namePersonPostfixMatch.IsEmpty)
-                    {
-                        namePersonValueMatch = new StringSearchResult(
-                            iNamePersonValue, 
-                            trimText.Substring(iNamePersonValue, namePersonPostfixMatch.Index));
-                    }
-                }
-                else
-                {
-                    var namePersonMatches = namePersonRegex2.Matches(trimText);
-                    if (namePersonMatches.Count > 0)
-                    {
-                        namePersonPrefixMatch = new StringSearchResult(
-                            namePersonMatches[0].Groups[1].Index,
-                            namePersonMatches[0].Groups[1].Value);
-                        namePersonValueMatch = new StringSearchResult(
-                            namePersonMatches[0].Groups[2].Index,
-                            namePersonMatches[0].Groups[2].Value);
-                    }
-                }
-
-                if (namePersonPrefixMatch.IsEmpty || namePersonValueMatch.IsEmpty)
+                List<StringSearchResult> namePersonPrefixResult;
+                List<StringSearchResult> namePersonValueResult;
+                ParseNamePersons(trimText, out namePersonPrefixResult, out namePersonValueResult);
+                if (!namePersonPrefixResult.Any() || !namePersonValueResult.Any())
                 {
                     return new ParseResult();
                 }
 
-                string namePersonRegion = trimText.Substring(namePersonPrefixMatch.Index, Math.Min(namePersonPrefixMatch.Keyword.Length + 1000, trimText.Length - namePersonPrefixMatch.Index));
+                StringSearchResult namePersonPrefixMatch = namePersonPrefixResult.First();
+                StringSearchResult namePersonValueMatch = namePersonValueResult.First();
+
+                int namePersonRegionLength = namePersonPrefixResult.Count > 1 
+                    ? namePersonPrefixResult[1].Index - namePersonPrefixMatch.Index
+                    : Math.Min(namePersonPrefixMatch.Keyword.Length + namePersonValueMatch.Keyword.Length + 1200, trimText.Length - namePersonPrefixMatch.Index);
+                string namePersonRegion = trimText.Substring(namePersonPrefixMatch.Index, namePersonRegionLength);
+                
+                StringSearchResult aggregatedAmountPrefixResult;
+                StringSearchResult aggregatedAmountValueResult;
+                ParseRegionValue(namePersonRegion, aggregatedAmountPrefixSearch, aggregatedAmountPostfixSearch, aggregatedAmountRegex2,
+                    out aggregatedAmountPrefixResult, out aggregatedAmountValueResult);
 
                 return new ParseResult
                 {
                     NamePersonPrefix = namePersonPrefixMatch.Keyword,
                     NamePersonValue = namePersonValueMatch.Keyword,
+                    AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
+                    AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
                     Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
                 };
 
@@ -104,7 +95,82 @@ namespace Dentogram
             }
         }
 
-        public ParseResult ParseTable(string trimText)
+        private static void ParseRegionValue(string trimText, StringSearch valuePrefixSearch, StringSearch valuePostfixSearch, Regex valueRegex,
+            out StringSearchResult valuePrefixResult, out StringSearchResult valueResult)
+        {
+            valuePrefixResult = StringSearchResult.Empty;
+            valueResult = StringSearchResult.Empty;
+
+            StringSearchResult[] searchMatches = valuePrefixSearch.FindAll(trimText);
+            if (!searchMatches.Any())
+            {
+                Match regexMatch = valueRegex.Match(trimText);
+                if (regexMatch.Success)
+                {
+                    valuePrefixResult = new StringSearchResult(regexMatch.Groups[1].Index, regexMatch.Groups[1].Value);
+                    valueResult = new StringSearchResult(regexMatch.Groups[2].Index, regexMatch.Groups[2].Value);
+                }
+                return;
+            }
+
+            int minIndex = searchMatches.Min(x => x.Index);
+            valuePrefixResult = searchMatches.
+                Where(x => x.Index == minIndex).
+                Aggregate((target, next) => target.Keyword.Length > next.Keyword.Length ? target : next);
+            
+            int iValue = valuePrefixResult.Index + valuePrefixResult.Keyword.Length;
+            string regionText = trimText.Substring(iValue, trimText.Length - iValue);
+            StringSearchResult valuePostfixMatch = valuePostfixSearch.FindFirst(regionText);
+            valueResult = valuePostfixMatch.IsEmpty 
+                ? StringSearchResult.Empty
+                : new StringSearchResult(iValue, regionText.Substring(0, valuePostfixMatch.Index));
+        }
+
+        private void ParseNamePersons(string trimText, out List<StringSearchResult> namePersonPrefixResult, out List<StringSearchResult> namePersonValueResult)
+        {
+            namePersonPrefixResult = new List<StringSearchResult>();
+            namePersonValueResult = new List<StringSearchResult>();
+
+            StringSearchResult[] searchMatches = namePersonPrefixSearch.
+                FindAll(trimText).
+                GroupBy(x => x.Index).
+                Select(x => x.Aggregate((target, next) => next.Keyword.Length < target.Keyword.Length ? target : next)).
+                ToArray();
+
+            if (searchMatches.Any())
+            {
+                foreach (StringSearchResult namePersonPrefixMatch in searchMatches)
+                {
+                    int iNamePersonValue = namePersonPrefixMatch.Index + namePersonPrefixMatch.Keyword.Length;
+                    string regionText = trimText.Substring(iNamePersonValue, PrefixWorkbook.NamePersonMaxLength + PrefixWorkbook.NamePersonPostfixMaxLength);
+                    StringSearchResult namePersonPostfixMatch = namePersonPostfixSearch.FindFirst(regionText);
+                    StringSearchResult namePersonValueMatch = namePersonPostfixMatch.IsEmpty 
+                        ? StringSearchResult.Empty
+                        : new StringSearchResult(iNamePersonValue, regionText.Substring(0, namePersonPostfixMatch.Index));
+
+                    namePersonPrefixResult.Add(namePersonPrefixMatch);
+                    namePersonValueResult.Add(namePersonValueMatch);
+                }
+            }
+            else
+            {
+                MatchCollection regexMatches = namePersonRegex2.Matches(trimText);
+                foreach (Match namePersonMatch in regexMatches)
+                {
+                    var namePersonPrefixMatch = new StringSearchResult(
+                        namePersonMatch.Groups[1].Index,
+                        namePersonMatch.Groups[1].Value);
+                    var namePersonValueMatch = new StringSearchResult(
+                        namePersonMatch.Groups[2].Index,
+                        namePersonMatch.Groups[2].Value);
+
+                    namePersonPrefixResult.Add(namePersonPrefixMatch);
+                    namePersonValueResult.Add(namePersonValueMatch);
+                }
+            }
+        }
+
+        public ParseResult ParseByRegexp(string trimText)
         {
             //string trimText = Regex.Replace(text.ToUpperInvariant(), @"[-:_\(\)""]", "");
             //trimText = Regex.Replace(trimText.ToUpperInvariant(), @" \D ", " ");
@@ -127,6 +193,7 @@ namespace Dentogram
             Match aggregatedAmountMatch = ParseAggregatedAmount(namePersonRegion);
             Group aggregatedAmountPrefixGroup = aggregatedAmountMatch?.Groups[1];
             Group aggregatedAmountValueGroup = aggregatedAmountMatch?.Groups[2];
+            Group aggregatedAmountPostfixGroup = aggregatedAmountMatch?.Groups[3];
 
             return new ParseResult
             {
@@ -134,6 +201,7 @@ namespace Dentogram
                 NamePersonValue = namePersonValueGroup.Value, 
                 AggregatedAmountPrefix = aggregatedAmountPrefixGroup?.Value, 
                 AggregatedAmountValue = aggregatedAmountValueGroup?.Value, 
+                AggregatedAmountPostfix = aggregatedAmountPostfixGroup?.Value, 
                 Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
             };
         }
@@ -186,7 +254,7 @@ namespace Dentogram
     {
         public static int NamePersonMaxLength = 400;
 
-        public static string[] NamePersonPostfixes = new[]
+        public static readonly string[] NamePersonPostfixes =
         {
             "2 CHECK",  
             "2 MEMBER",
@@ -194,9 +262,9 @@ namespace Dentogram
             "2MEMBER",
         };
 
-        public static int NamePersonPostfixMaxLength = NamePersonPostfixes.Max(x => x.Length);
+        public static readonly int NamePersonPostfixMaxLength = NamePersonPostfixes.Max(x => x.Length);
 
-        public static string[] NamePersonPrefixes = new[]
+        public static readonly string[] NamePersonPrefixes =
         {
             "NAME AND IRS IDENTIFICATION NO OF REPORTING PERSON",
             "NAME AND IRS NUMBER OF REPORTING PERSONS",
@@ -264,6 +332,62 @@ namespace Dentogram
             "NAMES OF REPORTING {0} IRS IDENTIFICATION NO OF {0} ABOVE PERSONS ENTITIES ONLY",
             "NAMES OF REPORTING PERSONS {0} IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
             */
+        };
+        
+        public static readonly string[] AggregatedAmountPostfixes = 
+        {
+            "10 AGGREGATE AMOUNT",
+            "10 CHECK BOX IF AGGREGATE",
+            "10 CHECK BOX IF THE AGGREGATE",
+            "10 CHECK IF AGGREGATE",
+            "10 CHECK IF THE AGGREGATE",
+            "10CHECK BOX IF THE AGGREGATE",
+            "10CHECK IF THE AGGREGATE",
+            "12 CHECK BOX IF AGGREGATE",
+            "12 CHECK BOX IF THE AGGREGATE",
+            "12 CHECK IF AGGREGATE",
+            "12 CHECK IF THE AGGREGATE",
+            "12CHECK BOX IF THE AGGREGATE",
+            "12CHECK IF THE AGGREGATE",
+            "AGGREGATE AMOUNT",
+            "CHECK BOX IF THE AGGREGATE",
+            "CHECK IF THE AGGREGATE",
+        };
+        //AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON 1,073,584 CHECK BOX IF THE AGGREGATE
+        public static int AggregatedAmountPostfixMaxLength = AggregatedAmountPostfixes.Max(x => x.Length);
+
+        public static readonly string[] AggregatedAmountPrefixes =
+        {
+            "11 AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
+            "11 AGGREGATE AMOUNT BENEFICIALLY OWNED",
+            "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
+            "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY REPORTING PERSON",
+            "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY THE REPORTING PERSON",
+            "11 AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "11 AGGREGATE AMOUNT OWNED BY EACH REPORTING PERSON",
+            "11 AGGREGATE AMOUT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "11AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON DISCRETIONARY NONDISCRETIONARY ACCOUNTS",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTINGPERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY THE REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENEFICIALY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATE AMOUNT BENFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9 AGGREGATED AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+
+            // Regexps
+            /*
+             "11 AGGREGATE AMOUNT BENEFICIALLY OWNED {0} BY EACH REPORTING PERSON",
+             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED {0} BY EACH REPORTING PERSON",
+             */
         };
     }
 }

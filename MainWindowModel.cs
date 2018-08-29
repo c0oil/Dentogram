@@ -316,51 +316,65 @@ namespace Dentogram
         {
             try
             {
+                var sw = Stopwatch.StartNew();
 
-
-            ParsingText parcer = new ParsingText();
-            var fileInfos = GetFiles().
-                Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseTableNew(text) }).
-                Take(2000).
-                Where(x => File.Exists(x.fileName)).
-                ToList();
+                ParsingText parcer = new ParsingText();
+                var fileInfos = GetFiles().
+                    Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseBySearch(text) }).
+                    Take(2000).
+                    Where(x => File.Exists(x.fileName)).
+                    ToList();
             
-            
-            var parced = fileInfos.
-                Where(x => 
-                    !string.IsNullOrEmpty(x.text) && 
-                    !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
-                ToList();
+                sw.Stop();
+                TimeSpan timeParsing = sw.Elapsed;
 
-            var notParced = fileInfos.
-                Where(x => 
-                    !string.IsNullOrEmpty(x.text) && 
-                    string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
-                ToList();
+                var parced = fileInfos.
+                    Where(x => 
+                        !string.IsNullOrEmpty(x.text) && 
+                        !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix) &&
+                        !string.IsNullOrEmpty(x.parsedResult.AggregatedAmountPrefix)).
+                    ToList();
+                    
+                var notParcedNamePerson = fileInfos.
+                        Where(x => 
+                            !string.IsNullOrEmpty(x.text) && 
+                            string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                        ToList();
 
-                /*
-            notParced = notParced.
-                Select(x => new { x.fileName, x.text, parsedResult = parcer.ParseTable(x.text) }).
-                Where(x => 
-                    !string.IsNullOrEmpty(x.text) && 
-                    !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
-                ToList();
-                */
+                var notParcedAggregatedAmount = fileInfos.
+                        Where(x => 
+                            !string.IsNullOrEmpty(x.text) && 
+                            !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix) &&
+                            string.IsNullOrEmpty(x.parsedResult.AggregatedAmountPrefix)).
+                        ToList();
+                    /*
+                var notParced = fileInfos.
+                    Where(x => 
+                        !string.IsNullOrEmpty(x.text) && 
+                        string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                    ToList();
+                    */
+                    /*
+                notParced = notParced.
+                    Select(x => new { x.fileName, x.text, parsedResult = parcer.ParseTable(x.text) }).
+                    Where(x => 
+                        !string.IsNullOrEmpty(x.text) && 
+                        !string.IsNullOrEmpty(x.parsedResult.NamePersonPrefix)).
+                    ToList();
+                    */
 
 
-            HashSet<string> namePersonHash= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonPrefix));
-            HashSet<string> names= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonValue));
-            //return;
+                //HashSet<string> namePersonHash= new HashSet<string>(parced.Select(x => x.parsedResult.AggregatedAmountPostfix));
+                //HashSet<string> names= new HashSet<string>(parced.Select(x => x.parsedResult.AggregatedAmountValue));
+                //return;
 
-
-            textes = notParced.Select(x => x.text).ToList();
-            files = notParced.Select(x => x.fileName).ToList();
-            //parsedRegions = notParced.Select(x => x.parsedResult.Region).ToList();
-            //dataSets = notParced.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
-            parsedRegions = notParced.Select(x => x.text).ToList();
-            dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
-
-            FilesDescription = $"All files: {fileInfos.Count}; Not parced files: {notParced.Count}";
+                textes = notParcedAggregatedAmount.Select(x => x.text).ToList();
+                files = notParcedAggregatedAmount.Select(x => x.fileName).ToList();
+                parsedRegions = notParcedAggregatedAmount.Select(x => x.parsedResult.Region).ToList();
+                dataSets = notParcedAggregatedAmount.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
+                //parsedRegions = notParced.Select(x => x.text).ToList();
+                //dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
+                FilesDescription = $"All files: {fileInfos.Count}; Not parced files: Name Person: {notParcedNamePerson.Count}, Amount: {notParcedAggregatedAmount.Count}, Time: {timeParsing:mm\\:ss}";
 
             }
             catch (Exception e)
@@ -544,8 +558,8 @@ namespace Dentogram
                     string line = reader.ReadLine();
                     while (line != null)
                     {
-                        //yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
-                        yield return line;
+                        yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        //yield return line;
                         line = reader.ReadLine();
                     }
                 }
