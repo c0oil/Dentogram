@@ -320,9 +320,10 @@ namespace Dentogram
 
                 ParsingText parcer = new ParsingText();
                 var fileInfos = GetFiles().
-                    Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseBySearch(text) }).
+                    Zip(GetTextes(), (fileName, text) => new { fileName, text }).
+                    SelectMany(x => parcer.ParseBySearch(x.text).Select(parsedResult => new { x.fileName, x.text, parsedResult })).
                     //Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseByRegexp(text) }).
-                    Take(2000).
+                    //Take(2000).
                     Where(x => File.Exists(x.fileName)).
                     ToList();
             
@@ -417,19 +418,16 @@ namespace Dentogram
                     ToList();
                     */
 
-
-                //return;
-
+                /*
                 textes = notParcedPercentOwned.Select(x => x.text).ToList();
                 files = notParcedPercentOwned.Select(x => x.fileName).ToList();
                 parsedRegions = notParcedPercentOwned.Select(x => x.parsedResult.Region).ToList();
                 dataSets = notParcedPercentOwned.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
-                /*
+                */
                 textes = notParcedNamePerson.Select(x => x.text).ToList();
                 files = notParcedNamePerson.Select(x => x.fileName).ToList();
                 parsedRegions = notParcedNamePerson.Select(x => x.text).ToList();
                 dataSets = notParcedNamePerson.Select(x => parcer.TrimForClustering(x.text)).ToList();
-                */
                 FilesDescription = $"All files: {fileInfos.Count}; Not parced files: Name Person: {notParcedNamePerson.Count}, Amount: {notParcedAggregatedAmount.Count}, Percent: {notParcedPercentOwned.Count}, Time: {timeParsing:mm\\:ss}";
 
             }
@@ -614,8 +612,8 @@ namespace Dentogram
                     string line = reader.ReadLine();
                     while (line != null)
                     {
-                        //yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
-                        yield return line;
+                        yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        //yield return line;
                         line = reader.ReadLine();
                     }
                 }

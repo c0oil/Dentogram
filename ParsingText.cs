@@ -44,7 +44,7 @@ namespace Dentogram
         
         //private readonly Regex percentOwnedRegex1 = new Regex(@"((?:11|13) ?\) ?PERCENT(?:AGE)? ?OF ?CLASS\s+REPRESENTED ?BY ?AMOUNT ?(?:IN|OF) ?ROW(?: ?\(? ?\d\d? ?\(?)?(?: ?SEE ?ITEM ?\d+)?) ?((?:\d+(?:\.\d+)?)|\*) ?%?([\s\S]*? ?\(? (?:12|14) ?\)? ?TYPE)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex percentOwnedRegex1 = new Regex(@"\b((?:11|13)\b\s*[\.\)]?\s*PERCENT(?:AGE)?\s+OF\s+CLASS\s+REPRESENTED\s+BY\s+AMOUNT\s+(?:IN|OF)\s+ROW(?:\s+\(?\d\d?\)?)?(?:\s+\(SEE\s+ITEM\s+\d+\))?)\s+\b((?:\d+(?:\.\d+)?)|\*)(?:\s*%)?(\b[\s\S]*?\b(?:12|14)\b\b\s*[\.\)]?\s*TYPE)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex percentOwnedRegex2 = new Regex(@"(ITEM 11) ((?:\d+(?:\.\d+)?)|\*) ?% (ITEM 12)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex percentOwnedRegex2 = new Regex(@"(ITEM 11) ((?:\d+(?:\.\d+)?)|\*) ?%? (ITEM 12)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
 
         private readonly Regex punctuationRegex = new Regex(@"\D[\,\.](?=\D)|\D[\,\.](?=\d)|\d[\,\.](?=\D)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -67,59 +67,66 @@ namespace Dentogram
             return trimText;
         }
 
-        public ParseResult ParseBySearch(string trimText)
+        public IEnumerable<ParseResult> ParseBySearch(string trimText)
         {
-            try
+            List<StringSearchResult> namePersonPrefixResult;
+            List<StringSearchResult> namePersonValueResult;
+            List<StringSearchResult> namePersonPostfixResult;
+            ParseNamePersons(trimText, out namePersonPrefixResult, out namePersonValueResult, out namePersonPostfixResult);
+
+            if (namePersonValueResult.Any())
             {
-                List<StringSearchResult> namePersonPrefixResult;
-                List<StringSearchResult> namePersonValueResult;
-                ParseNamePersons(trimText, out namePersonPrefixResult, out namePersonValueResult);
-                if (!namePersonPrefixResult.Any() || !namePersonValueResult.Any())
+                for (int i = 0; i < namePersonPrefixResult.Count; i++)
                 {
-                    return new ParseResult();
-                }
+                    StringSearchResult namePersonPrefixMatch = namePersonPrefixResult[i];
+                    StringSearchResult namePersonValueMatch = namePersonValueResult[i];
+                    StringSearchResult namePersonPostfixMatch = namePersonPostfixResult[i];
 
-                StringSearchResult namePersonPrefixMatch = namePersonPrefixResult.First();
-                StringSearchResult namePersonValueMatch = namePersonValueResult.First();
+                    if (namePersonValueMatch.IsEmpty)
+                    {
+                        continue;
+                    }
 
-                int namePersonRegionLength = namePersonPrefixResult.Count > 1 
-                    ? namePersonPrefixResult[1].Index - namePersonPrefixMatch.Index
-                    : Math.Min(namePersonPrefixMatch.Keyword.Length + namePersonValueMatch.Keyword.Length + 1200, trimText.Length - namePersonPrefixMatch.Index);
-                string namePersonRegion = trimText.Substring(namePersonPrefixMatch.Index, namePersonRegionLength);
+                    int namePersonRegionLength = i + 1 < namePersonPrefixResult.Count 
+                        ? namePersonPrefixResult[i + 1].Index - namePersonPrefixMatch.Index
+                        : Math.Min(namePersonPrefixMatch.Keyword.Length + namePersonValueMatch.Keyword.Length + 1400, trimText.Length - namePersonPrefixMatch.Index);
+                    string namePersonRegion = trimText.Substring(namePersonPrefixMatch.Index, namePersonRegionLength);
                 
-                StringSearchResult aggregatedAmountPrefixResult;
-                StringSearchResult aggregatedAmountValueResult;
-                StringSearchResult aggregatedAmountPostfixResult;
-                ParseRegionValue(namePersonRegion, aggregatedAmountPrefixSearch, aggregatedAmountPostfixSearch, aggregatedAmountRegex2,
-                    out aggregatedAmountPrefixResult, out aggregatedAmountValueResult, out aggregatedAmountPostfixResult);
+                    StringSearchResult aggregatedAmountPrefixResult;
+                    StringSearchResult aggregatedAmountValueResult;
+                    StringSearchResult aggregatedAmountPostfixResult;
+                    ParseRegionValue(namePersonRegion, aggregatedAmountPrefixSearch, aggregatedAmountPostfixSearch, aggregatedAmountRegex2,
+                        out aggregatedAmountPrefixResult, out aggregatedAmountValueResult, out aggregatedAmountPostfixResult);
 
-                StringSearchResult percentOwnedPrefixResult;
-                StringSearchResult percentOwnedValueResult;
-                StringSearchResult percentOwnedPostfixResult;
-                ParseRegionValue(namePersonRegion, percentOwnedPrefixSearch, percentOwnedPostfixSearch, percentOwnedRegex2,
-                    out percentOwnedPrefixResult, out percentOwnedValueResult, out percentOwnedPostfixResult);
+                    StringSearchResult percentOwnedPrefixResult;
+                    StringSearchResult percentOwnedValueResult;
+                    StringSearchResult percentOwnedPostfixResult;
+                    ParseRegionValue(namePersonRegion, percentOwnedPrefixSearch, percentOwnedPostfixSearch, percentOwnedRegex2,
+                        out percentOwnedPrefixResult, out percentOwnedValueResult, out percentOwnedPostfixResult);
 
-                return new ParseResult
-                {
-                    NamePersonPrefix = namePersonPrefixMatch.Keyword,
-                    NamePersonValue = namePersonValueMatch.Keyword,
+                    
+                    yield return new ParseResult
+                    {
+                        NamePersonPrefix = namePersonPrefixMatch.Keyword,
+                        NamePersonValue = namePersonValueMatch.Keyword,
+                        NamePersonPostfix = namePersonPostfixMatch.Keyword,
 
-                    AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
-                    AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
-                    AggregatedAmountPostfix = aggregatedAmountPostfixResult.Keyword,
+                        AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
+                        AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
+                        AggregatedAmountPostfix = aggregatedAmountPostfixResult.Keyword,
 
-                    PercentOwnedPrefix = percentOwnedPrefixResult.Keyword,
-                    PercentOwnedValue = percentOwnedValueResult.Keyword,
-                    PercentOwnedPostfix = percentOwnedPostfixResult.Keyword,
+                        PercentOwnedPrefix = percentOwnedPrefixResult.Keyword,
+                        PercentOwnedValue = percentOwnedValueResult.Keyword,
+                        PercentOwnedPostfix = percentOwnedPostfixResult.Keyword,
 
-                    Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
-                };
-
+                        Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
+                    };
+                }
             }
-            catch (Exception e)
+            else
             {
-                Console.WriteLine(e);
-                throw;
+                yield return new ParseResult();
+
             }
         }
 
@@ -156,10 +163,11 @@ namespace Dentogram
                 : new StringSearchResult(iValue, regionText.Substring(0, valuePostfixResult.Index));
         }
 
-        private void ParseNamePersons(string trimText, out List<StringSearchResult> namePersonPrefixResult, out List<StringSearchResult> namePersonValueResult)
+        private void ParseNamePersons(string trimText, out List<StringSearchResult> namePersonPrefixResult, out List<StringSearchResult> namePersonValueResult, out List<StringSearchResult> namePersonPostfixResult)
         {
             namePersonPrefixResult = new List<StringSearchResult>();
             namePersonValueResult = new List<StringSearchResult>();
+            namePersonPostfixResult = new List<StringSearchResult>();
 
             StringSearchResult[] searchMatches = namePersonPrefixSearch.
                 FindAll(trimText).
@@ -180,6 +188,7 @@ namespace Dentogram
 
                     namePersonPrefixResult.Add(namePersonPrefixMatch);
                     namePersonValueResult.Add(namePersonValueMatch);
+                    namePersonPostfixResult.Add(namePersonPostfixMatch);
                 }
             }
             else
@@ -193,17 +202,19 @@ namespace Dentogram
                     var namePersonValueMatch = new StringSearchResult(
                         namePersonMatch.Groups[2].Index,
                         namePersonMatch.Groups[2].Value);
+                    var namePersonPostfixMatch = new StringSearchResult(
+                        namePersonMatch.Groups[3].Index,
+                        namePersonMatch.Groups[3].Value);
 
                     namePersonPrefixResult.Add(namePersonPrefixMatch);
                     namePersonValueResult.Add(namePersonValueMatch);
+                    namePersonPostfixResult.Add(namePersonPostfixMatch);
                 }
             }
         }
 
         public ParseResult ParseByRegexp(string trimText)
         {
-            //string trimText = Regex.Replace(text.ToUpperInvariant(), @"[-:_\(\)""]", "");
-            //trimText = Regex.Replace(trimText.ToUpperInvariant(), @" \D ", " ");
             MatchCollection namePersonMatches = namePersonRegex1.Matches(trimText);
             if (namePersonMatches.Count == 0)
             {
@@ -306,80 +317,14 @@ namespace Dentogram
     {
         public static int NamePersonMaxLength = 400;
 
-        public static readonly string[] NamePersonPostfixes =
-        {
-            "2 CHECK",  
-            "2 MEMBER",
-            "2CHECK",
-            "2MEMBER",
-        };
-
-        public static readonly int NamePersonPostfixMaxLength = NamePersonPostfixes.Max(x => x.Length);
 
         public static readonly string[] NamePersonPrefixes =
         {
-            /*
-            "NAME AND IRS IDENTIFICATION NO OF REPORTING PERSON",
-            "NAME AND IRS NUMBER OF REPORTING PERSONS",
-            "NAME OF REPORTING PERSON",
-            "NAME OF REPORTING PERSON 1 SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON 1SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON I R S IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NOS OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON SS OR IRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSON SS OR IRS IDENTIFICATION NOS OF ABOVE PERSON",
-            "NAME OF REPORTING PERSON SS OR IRS IDENTIFICATION NOS OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSON SS OR IRS INDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSONIRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSONIRS IDENTIFICATION NO OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSONOR IRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSONS",
-            "NAME OF REPORTING PERSONS I R S IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF REPORTING PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSONS SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSONS SS OR IRS IDENTIFICATION NO OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSONS SS OR IRS IDENTIFICATION NOS OF ABOVE PERSONS",
-            "NAME OF REPORTING PERSONS SS OR IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAME OF REPORTING PERSONSS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAME OF REPORTING PERSONSS OR IRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAME OF REPORTING PERSONSS OR IRS INDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAMES OF REPORTING PERSON",
-            "NAMES OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAMES OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSON SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAMES OF REPORTING PERSONS",
-            "NAMES OF REPORTING PERSONS AND IRS IDENTIFICATION NOS OF SUCH PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSON ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS",
-            "NAMES OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS IRS IDENTIFICATION NOS OR ABOVE PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONS SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
-            "NAMES OF REPORTING PERSONS SS OR IRS IDENTIFICATION NO OF ABOVE PERSONS",
-            "NAMES OF REPORTING PERSONS SS OR IRS IDENTIFICATION NOS OF ABOVE PERSONS",
-            "NAMES OF REPORTING PERSONS SS OR IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
-            "NAMES OF REPORTING PERSONSIRS IDENTIFICATION NO OF ABOVE PERSONS ENTITIES ONLY",
-            "1 ENTITIES ONLY",
-            */
-
             "1 (ENTITIES ONLY)",
             "NAME AND IRS IDENTIFICATION NO OF REPORTING PERSON",
             "NAME AND IRS NUMBER OF REPORTING PERSONS",
             "NAME AND IRS IDENTIFICATION NUMBER OF REPORTING PERSON",
+            "NAME OF IRS IDENTIFICATION NO OF REPORTING PERSON",
             "NAME OF REPORTING PERSON",
             "NAME OF REPORTING PERSON (SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
             "NAME OF REPORTING PERSON 1 SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
@@ -459,41 +404,22 @@ namespace Dentogram
             "NAMES OF REPORTING PERSONS {0} IRS IDENTIFICATION NOS OF ABOVE PERSONS ENTITIES ONLY",
             */
         };
-        
-        public static readonly string[] AggregatedAmountPostfixes = 
+
+        public static readonly string[] NamePersonPostfixes =
         {
-            "10 AGGREGATE AMOUNT",
-            "10 CHECK BOX IF AGGREGATE",
-            "10 CHECK BOX IF THE AGGREGATE",
-            "10 CHECK IF AGGREGATE",
-            "10 CHECK IF THE AGGREGATE",
-            "10CHECK BOX IF THE AGGREGATE",
-            "10CHECK IF THE AGGREGATE",
-            "12 CHECK BOX IF AGGREGATE",
-            "12 CHECK BOX IF THE AGGREGATE",
-            "12 CHECK IF AGGREGATE",
-            "12 CHECK IF THE AGGREGATE",
-            "12CHECK BOX IF THE AGGREGATE",
-            "12CHECK IF THE AGGREGATE",
-            "AGGREGATE AMOUNT",
-            "CHECK BOX IF THE AGGREGATE",
-            "CHECK IF THE AGGREGATE",
+            "2) CHECK",
+            "2) MEMBER",
+            "2 CHECK",
+            "2 MEMBER",
+            "2CHECK",
+            "2MEMBER",
         };
 
-        public static int AggregatedAmountPostfixMaxLength = AggregatedAmountPostfixes.Max(x => x.Length);
+        public static readonly int NamePersonPostfixMaxLength = NamePersonPostfixes.Max(x => x.Length);
+        
 
         public static readonly string[] AggregatedAmountPrefixes =
         {
-            "11) AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
-            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED",
-            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
-            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY REPORTING PERSON",
-            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY THE REPORTING PERSON",
-            "11) AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "11) AGGREGATE AMOUNT OWNED BY EACH REPORTING PERSON",
-            "11) AGGREGATE AMOUT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "11)AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUNT BENEFICIALLY OWNED",
             "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
@@ -503,26 +429,13 @@ namespace Dentogram
             "11 AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUNT OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "11)AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "11AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-
-            "9) AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON DISCRETIONARY NONDISCRETIONARY ACCOUNTS",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTINGPERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY REPORTING PERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY THE REPORTING PERSON",
-            "9) AGGREGATE AMOUNT BENEFICIALY OWNED BY EACH REPORTING PERSON",
-            "9) AGGREGATE AMOUNT BENFICIALLY OWNED BY EACH REPORTING PERSON",
-            "9) AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "9) AGGREGATED AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "9)AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "9 AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-            "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON DISCRETIONARY NONDISCRETIONARY ACCOUNTS",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTINGPERSON",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY REPORTING PERSON",
             "9 AGGREGATE AMOUNT BENEFICIALLY OWNED BY THE REPORTING PERSON",
@@ -530,8 +443,10 @@ namespace Dentogram
             "9 AGGREGATE AMOUNT BENFICIALLY OWNED BY EACH REPORTING PERSON",
             "9 AGGREGATE AMOUNT OF BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "9 AGGREGATED AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED",
+            "9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "9)AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "9AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
-
             "AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
 
             // Regexps
@@ -540,11 +455,87 @@ namespace Dentogram
              "9 AGGREGATE AMOUNT BENEFICIALLY OWNED {0} BY EACH REPORTING PERSON",
              */
         };
+
+        public static readonly string[] AggregatedAmountPostfixes = 
+        {
+            "10 CHECK BOX IF AGGREGATE",
+            "10 CHECK BOX IF THE AGGREGATE",
+            "10 CHECK IF AGGREGATE",
+            "10 CHECK IF THE AGGREGATE",
+            "10) AGGREGATE AMOUNT",
+            "10) CHECK BOX IF THE AGGREGATE",
+            "10) CHECK IF AGGREGATE",
+            "10) CHECK IF THE AGGREGATE",
+            "10)CHECK BOX IF THE AGGREGATE",
+            "10)CHECK IF THE AGGREGATE",
+            "10CHECK BOX IF THE AGGREGATE",
+            "10CHECK IF THE AGGREGATE",
+            "12 CHECK BOX IF AGGREGATE",
+            "12 CHECK BOX IF THE AGGREGATE",
+            "12 CHECK IF AGGREGATE",
+            "12 CHECK IF THE AGGREGATE",
+            "12) CHECK BOX IF THE AGGREGATE",
+            "12) CHECK IF THE AGGREGATE",
+            "12)CHECK BOX IF THE AGGREGATE",
+            "12)CHECK IF THE AGGREGATE",
+            "12CHECK BOX IF THE AGGREGATE",
+            "12CHECK IF THE AGGREGATE",
+            "AGGREGATE AMOUNT",
+            "CHECK BOX IF THE AGGREGATE",
+            "CHECK IF THE AGGREGATE",
+
+        };
+
+        public static int AggregatedAmountPostfixMaxLength = AggregatedAmountPostfixes.Max(x => x.Length);
         
+
+        public static readonly string[] PercentOwnedPrefixes =
+        {
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9)",
+            "11 PERCENT OF CLASS REPRESENTED IN ROW (9)",
+            "11 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "11)PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11) (SEE ITEM 5)",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT OF ROW (11)",
+            "13 PERCENT OF CLASS REPRESENTED BY ROW 11",
+            "13 PERCENT OF CLASS REPRESENTED IN ROW (11)",
+            "13 PERCENT OF SERIES REPRESENTED BY AMOUNT IN ROW (11)",
+            "13 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN BOX (11)",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "13)PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+        };
+
+        // 13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN BOX (11) 0.0
+        // 14) TYPE
         public static readonly string[] PercentOwnedPostfixes = 
         {
             "12 TYPE",
             "14 TYPE",
+            "12) TYPE",
+            "14) TYPE",
             "12TYPE",
             "14TYPE",
             "TYPE OF REPORTING PERSON",
@@ -557,71 +548,5 @@ namespace Dentogram
         };
 
         public static int PercentOwnedPostfixMaxLength = PercentOwnedPostfixes.Max(x => x.Length);
-
-        public static readonly string[] PercentOwnedPrefixes =
-        {
-            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9)",
-            "11) PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "11)PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9)",
-            "11 PERCENT OF CLASS REPRESENTED IN ROW (9)",
-            "11 PERCENT OF CLASS REPRESENTED BY ROW 9",
-            "11 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11) (SEE ITEM 5)",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "13) PERCENT OF CLASS REPRESENTED BY AMOUNT OF ROW (11)",
-            "13) PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "13)PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11) (SEE ITEM 5)",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT OF ROW (11)",
-            "13 PERCENT OF CLASS REPRESENTED IN ROW (11)",
-            "13 PERCENT OF CLASS REPRESENTED BY ROW 11",
-            "13 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            
-            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
-            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
-            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            
-            /*
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 1",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11 SEE ITEM 5",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
-            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT OF ROW 11",
-            "13 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
-            */
-
-
-            // Regexps
-        };
     }
 }
