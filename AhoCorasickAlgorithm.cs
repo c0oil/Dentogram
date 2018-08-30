@@ -53,8 +53,8 @@ namespace Dentogram
 	{
 		#region Members
 		
-		private int _index;
-		private string _keyword;
+		private int index;
+		private string keyword;
 
 		/// <summary>
 		/// Initialize string search result
@@ -63,7 +63,7 @@ namespace Dentogram
 		/// <param name="keyword">Found keyword</param>
 		public StringSearchResult(int index,string keyword)
 		{
-			_index=index; _keyword=keyword;
+			this.index=index; this.keyword=keyword;
 		}
 
 
@@ -72,7 +72,7 @@ namespace Dentogram
 		/// </summary>
 		public int Index
 		{
-			get { return _index; }
+			get { return index; }
 		}
 
 
@@ -81,7 +81,7 @@ namespace Dentogram
 		/// </summary>
 		public string Keyword
 		{
-			get { return _keyword; }
+			get { return keyword; }
 		}
 
 
@@ -122,12 +122,12 @@ namespace Dentogram
 			/// <param name="c">Character</param>
 			public TreeNode(TreeNode parent,char c)
 			{
-				_char=c; _parent=parent;
-				_results=new ArrayList();
-				_resultsAr=new string[] {};
+				_char=c; this.parent=parent;
+				results=new ArrayList();
+				resultsAr=new string[] {};
 
-				_transitionsAr=new TreeNode[] {};
-				_transHash=new Hashtable();
+				transitionsAr=new TreeNode[] {};
+				transHash=new Hashtable();
 			}
 
 
@@ -137,9 +137,9 @@ namespace Dentogram
 			/// <param name="result">Pattern</param>
 			public void AddResult(string result)
 			{
-				if (_results.Contains(result)) return;
-				_results.Add(result);
-				_resultsAr=(string[])_results.ToArray(typeof(string));
+				if (results.Contains(result)) return;
+				results.Add(result);
+				resultsAr=(string[])results.ToArray(typeof(string));
 			}
 
 			/// <summary>
@@ -148,10 +148,10 @@ namespace Dentogram
 			/// <param name="node">Node</param>
 			public void AddTransition(TreeNode node)
 			{
-				_transHash.Add(node.Char,node);
-				TreeNode[] ar=new TreeNode[_transHash.Values.Count];
-				_transHash.Values.CopyTo(ar,0);
-				_transitionsAr=ar;
+				transHash.Add(node.Char,node);
+				TreeNode[] ar=new TreeNode[transHash.Values.Count];
+				transHash.Values.CopyTo(ar,0);
+				transitionsAr=ar;
 			}
 
 
@@ -162,7 +162,7 @@ namespace Dentogram
 			/// <returns>Returns TreeNode or null</returns>
 			public TreeNode GetTransition(char c)
 			{
-				return (TreeNode)_transHash[c];
+				return (TreeNode)transHash[c];
 			}
 
 
@@ -180,12 +180,12 @@ namespace Dentogram
 			#region Properties
 			
 			private char _char;
-			private TreeNode _parent;
-			private TreeNode _failure;
-			private ArrayList _results;
-			private TreeNode[] _transitionsAr;
-			private string[] _resultsAr;
-			private Hashtable _transHash;
+			private TreeNode parent;
+			private TreeNode failure;
+			private ArrayList results;
+			private TreeNode[] transitionsAr;
+			private string[] resultsAr;
+			private Hashtable transHash;
 
 			/// <summary>
 			/// Character
@@ -201,7 +201,7 @@ namespace Dentogram
 			/// </summary>
 			public TreeNode Parent
 			{
-				get { return _parent; }
+				get { return parent; }
 			}
 
 
@@ -210,8 +210,8 @@ namespace Dentogram
 			/// </summary>
 			public TreeNode Failure
 			{
-				get { return _failure; }
-				set { _failure=value; } 
+				get { return failure; }
+				set { failure=value; } 
 			}
 
 
@@ -220,7 +220,7 @@ namespace Dentogram
 			/// </summary>
 			public TreeNode[] Transitions
 			{
-				get { return _transitionsAr; }
+				get { return transitionsAr; }
 			}
 
 
@@ -229,7 +229,7 @@ namespace Dentogram
 			/// </summary>
 			public string[] Results
 			{
-				get { return _resultsAr; }
+				get { return resultsAr; }
 			}
 
 			#endregion
@@ -241,12 +241,12 @@ namespace Dentogram
 		/// <summary>
 		/// Root of keyword tree
 		/// </summary>
-		private TreeNode _root;
+		private TreeNode root;
 
 		/// <summary>
 		/// Keywords to search for
 		/// </summary>
-		private string[] _keywords;
+		private string[] keywords;
 
 		#endregion
 
@@ -278,11 +278,11 @@ namespace Dentogram
 		void BuildTree()
 		{
 			// Build keyword tree and transition function
-			_root=new TreeNode(null,' ');
-			foreach(string p in _keywords)
+			root=new TreeNode(null,' ');
+			foreach(string p in keywords)
 			{
 				// add pattern to tree
-				TreeNode nd=_root;
+				TreeNode nd=root;
 				foreach(char c in p)
 				{
 					TreeNode ndNew=null;
@@ -302,9 +302,9 @@ namespace Dentogram
 			// Find failure functions
 			ArrayList nodes=new ArrayList();
 			// level 1 nodes - fail to root node
-			foreach(TreeNode nd in _root.Transitions)
+			foreach(TreeNode nd in root.Transitions)
 			{
-				nd.Failure=_root;
+				nd.Failure=root;
 				foreach(TreeNode trans in nd.Transitions) nodes.Add(trans);
 			}
 			// other nodes - using BFS
@@ -318,7 +318,7 @@ namespace Dentogram
 
 					while(r!=null&&!r.ContainsTransition(c)) r=r.Failure;
 					if (r==null)
-						nd.Failure=_root;
+						nd.Failure=root;
 					else
 					{
 						nd.Failure=r.GetTransition(c);        
@@ -332,7 +332,7 @@ namespace Dentogram
 				}
 				nodes=newNodes;
 			}
-			_root.Failure=_root;		
+			root.Failure=root;		
 		}
 
 
@@ -345,10 +345,10 @@ namespace Dentogram
 		/// </summary>
 		public string[] Keywords
 		{
-			get { return _keywords; }
+			get { return keywords; }
 			set 
 			{
-				_keywords=value; 
+				keywords=value; 
 				BuildTree();
 			}
 		}
@@ -362,7 +362,7 @@ namespace Dentogram
 		public StringSearchResult[] FindAll(string text)
 		{
 			ArrayList ret=new ArrayList();
-			TreeNode ptr=_root;
+			TreeNode ptr=root;
 			int index=0;
 
 			while(index<text.Length)
@@ -371,7 +371,7 @@ namespace Dentogram
 				while(trans==null)
 				{
 					trans=ptr.GetTransition(text[index]);
-					if (ptr==_root) break;
+					if (ptr==root) break;
 					if (trans==null) ptr=ptr.Failure;
 				}
 				if (trans!=null) ptr=trans;
@@ -392,7 +392,7 @@ namespace Dentogram
 		public StringSearchResult FindFirst(string text)
 		{
 			ArrayList ret=new ArrayList();
-			TreeNode ptr=_root;
+			TreeNode ptr=root;
 			int index=0;
 
 			while(index<text.Length)
@@ -401,7 +401,7 @@ namespace Dentogram
 				while(trans==null)
 				{
 					trans=ptr.GetTransition(text[index]);
-					if (ptr==_root) break;
+					if (ptr==root) break;
 					if (trans==null) ptr=ptr.Failure;
 				}
 				if (trans!=null) ptr=trans;
@@ -421,7 +421,7 @@ namespace Dentogram
 		/// <returns>True when text contains any keyword</returns>
 		public bool ContainsAny(string text)
 		{
-			TreeNode ptr=_root;
+			TreeNode ptr=root;
 			int index=0;
 
 			while(index<text.Length)
@@ -430,13 +430,14 @@ namespace Dentogram
 				while(trans==null)
 				{
 					trans=ptr.GetTransition(text[index]);
-					if (ptr==_root) break;
+					if (ptr==root) break;
 					if (trans==null) ptr=ptr.Failure;
 				}
 				if (trans!=null) ptr=trans;
 
 				if (ptr.Results.Length>0) return true;
-				index++;
+                
+			    index++;
 			}
 			return false;
 		}
