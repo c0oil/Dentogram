@@ -13,9 +13,17 @@ namespace Dentogram
         {
             public string NamePersonPrefix;
             public string NamePersonValue;
+            public string NamePersonPostfix;
+
             public string AggregatedAmountPrefix;
             public string AggregatedAmountValue;
             public string AggregatedAmountPostfix;
+
+            public string PercentOwnedPrefix;
+            public string PercentOwnedValue;
+            public string PercentOwnedPostfix;
+            public string PercentOwned;
+
             public string Region;
         }
 
@@ -25,14 +33,18 @@ namespace Dentogram
         private readonly StringSearch aggregatedAmountPrefixSearch = new StringSearch(PrefixWorkbook.AggregatedAmountPrefixes);
         private readonly StringSearch aggregatedAmountPostfixSearch = new StringSearch(PrefixWorkbook.AggregatedAmountPostfixes);
 
+        private readonly StringSearch percentOwnedPrefixSearch = new StringSearch(PrefixWorkbook.PercentOwnedPrefixes);
+        private readonly StringSearch percentOwnedPostfixSearch = new StringSearch(PrefixWorkbook.PercentOwnedPostfixes);
+
         private readonly Regex namePersonRegex1 = new Regex(@"(NAMES?(?: ?OF ?REPORTING| ?AND ?IRS) ?[\s\S]{0,100}PERSONS?(?: ?ENTITIES ONLY)?)([\s\S]{0,400}?)2 ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex namePersonRegex2 = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?) ITEM \d", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         
         private readonly Regex aggregatedAmountRegex1 = new Regex(@"((?:9|11) ?AGGREGATED? ?AMOUN?T ?(?:[\s\S]{0,100}PERSONS?(?: ?DISCRETIONARY ?NONDISCRETIONARY ?ACCOUNTS)?|BENEFICIALLY ?OWNED)) ?((?:\d+(?:\,\d+)*)|\*|NONE|SEE ROW 6 ABOVE)[\s\S]*?((?:10|12)? ?(?:CHECK(?: ?BOX)? ?IF(?: ?THE)? ?AGGREGATE|AGGREGATE ?AMOUNT))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex aggregatedAmountRegex2 = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) (ITEM 11)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        
+        private readonly Regex percentOwnedRegex1 = new Regex(@"((?:11|13) ?PERCENT(?:AGE)? ?OF ?CLASS\s+REPRESENTED ?BY ?AMOUNT ?(?:IN|OF) ?ROW(?: ?\d\d?)?(?: ?SEE ?ITEM ?\d+)?) ?((?:\d+(?:\.\d+)?)|\*) ?%?([\s\S]*?(?:12|14) ?TYPE)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex percentOwnedRegex2 = new Regex(@"(ITEM 11) ((?:\d+(?:\.\d+)?)|\*) ?% (ITEM 12)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-
-        //private readonly Regex percentOwnedRegex1 = new Regex(@"(?:11|13) ?PERCENT(?:AGE)?\s+OF\s+CLASS\s+REPRESENTED\s+BY\s+AMOUNT\s+(?:IN|OF)\s+ROW(?:\s+\(?\d\d?\)?)?(?:\s+\(SEE\s+ITEM\s+\d+\))?\s+\b((?:\d+(?:\.\d+)?)|\*)(?:\s*%)?\b[\s\S]*?\b(?:12|14)\b\b\s*[\.\)]?\s*TYPE", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private readonly Regex punctuationRegex = new Regex(@"\D[\,\.](?=\D)|\D[\,\.](?=\d)|\d[\,\.](?=\D)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -75,15 +87,29 @@ namespace Dentogram
                 
                 StringSearchResult aggregatedAmountPrefixResult;
                 StringSearchResult aggregatedAmountValueResult;
+                StringSearchResult aggregatedAmountPostfixResult;
                 ParseRegionValue(namePersonRegion, aggregatedAmountPrefixSearch, aggregatedAmountPostfixSearch, aggregatedAmountRegex2,
-                    out aggregatedAmountPrefixResult, out aggregatedAmountValueResult);
+                    out aggregatedAmountPrefixResult, out aggregatedAmountValueResult, out aggregatedAmountPostfixResult);
+
+                StringSearchResult percentOwnedPrefixResult;
+                StringSearchResult percentOwnedValueResult;
+                StringSearchResult percentOwnedPostfixResult;
+                ParseRegionValue(namePersonRegion, percentOwnedPrefixSearch, percentOwnedPostfixSearch, percentOwnedRegex2,
+                    out percentOwnedPrefixResult, out percentOwnedValueResult, out percentOwnedPostfixResult);
 
                 return new ParseResult
                 {
                     NamePersonPrefix = namePersonPrefixMatch.Keyword,
                     NamePersonValue = namePersonValueMatch.Keyword,
+
                     AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
                     AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
+                    AggregatedAmountPostfix = aggregatedAmountPostfixResult.Keyword,
+
+                    PercentOwnedPrefix = percentOwnedPrefixResult.Keyword,
+                    PercentOwnedValue = percentOwnedValueResult.Keyword,
+                    PercentOwnedPostfix = percentOwnedPostfixResult.Keyword,
+
                     Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
                 };
 
@@ -96,10 +122,11 @@ namespace Dentogram
         }
 
         private static void ParseRegionValue(string trimText, StringSearch valuePrefixSearch, StringSearch valuePostfixSearch, Regex valueRegex,
-            out StringSearchResult valuePrefixResult, out StringSearchResult valueResult)
+            out StringSearchResult valuePrefixResult, out StringSearchResult valueResult, out StringSearchResult valuePostfixResult)
         {
             valuePrefixResult = StringSearchResult.Empty;
             valueResult = StringSearchResult.Empty;
+            valuePostfixResult = StringSearchResult.Empty;
 
             StringSearchResult[] searchMatches = valuePrefixSearch.FindAll(trimText);
             if (!searchMatches.Any())
@@ -109,6 +136,7 @@ namespace Dentogram
                 {
                     valuePrefixResult = new StringSearchResult(regexMatch.Groups[1].Index, regexMatch.Groups[1].Value);
                     valueResult = new StringSearchResult(regexMatch.Groups[2].Index, regexMatch.Groups[2].Value);
+                    valuePostfixResult = new StringSearchResult(regexMatch.Groups[3].Index, regexMatch.Groups[3].Value);
                 }
                 return;
             }
@@ -120,10 +148,10 @@ namespace Dentogram
             
             int iValue = valuePrefixResult.Index + valuePrefixResult.Keyword.Length;
             string regionText = trimText.Substring(iValue, trimText.Length - iValue);
-            StringSearchResult valuePostfixMatch = valuePostfixSearch.FindFirst(regionText);
-            valueResult = valuePostfixMatch.IsEmpty 
+            valuePostfixResult = valuePostfixSearch.FindFirst(regionText);
+            valueResult = valuePostfixResult.IsEmpty 
                 ? StringSearchResult.Empty
-                : new StringSearchResult(iValue, regionText.Substring(0, valuePostfixMatch.Index));
+                : new StringSearchResult(iValue, regionText.Substring(0, valuePostfixResult.Index));
         }
 
         private void ParseNamePersons(string trimText, out List<StringSearchResult> namePersonPrefixResult, out List<StringSearchResult> namePersonValueResult)
@@ -195,18 +223,30 @@ namespace Dentogram
             Group aggregatedAmountValueGroup = aggregatedAmountMatch?.Groups[2];
             Group aggregatedAmountPostfixGroup = aggregatedAmountMatch?.Groups[3];
 
+            Match percentOwnedMatch = ParsePercentOwned(namePersonRegion);
+            Group percentOwnedPrefixGroup = percentOwnedMatch?.Groups[1];
+            Group percentOwnedValueGroup = percentOwnedMatch?.Groups[2];
+            Group percentOwnedPostfixGroup = percentOwnedMatch?.Groups[3];
+
             return new ParseResult
             {
                 NamePersonPrefix = namePersonPrefixGroup.Value,
-                NamePersonValue = namePersonValueGroup.Value, 
-                AggregatedAmountPrefix = aggregatedAmountPrefixGroup?.Value, 
-                AggregatedAmountValue = aggregatedAmountValueGroup?.Value, 
-                AggregatedAmountPostfix = aggregatedAmountPostfixGroup?.Value, 
+                NamePersonValue = namePersonValueGroup.Value,
+
+                AggregatedAmountPrefix = aggregatedAmountPrefixGroup?.Value,
+                AggregatedAmountValue = aggregatedAmountValueGroup?.Value,
+                AggregatedAmountPostfix = aggregatedAmountPostfixGroup?.Value,
+
+                PercentOwnedPrefix = percentOwnedPrefixGroup?.Value,
+                PercentOwnedValue = percentOwnedValueGroup?.Value,
+                PercentOwnedPostfix = percentOwnedPostfixGroup?.Value,
+                PercentOwned = percentOwnedMatch?.Value,
+
                 Region = namePersonRegion.Substring(0, namePersonRegion.LastIndexOf(' '))
             };
         }
 
-        public Match ParseAggregatedAmount(string trimText)
+        private Match ParseAggregatedAmount(string trimText)
         {
             MatchCollection aggregatedAmountMatches = aggregatedAmountRegex1.Matches(trimText);
             if (aggregatedAmountMatches.Count == 0)
@@ -214,6 +254,16 @@ namespace Dentogram
                 aggregatedAmountMatches = aggregatedAmountRegex2.Matches(trimText);
             }
             return aggregatedAmountMatches.Count == 0 ? null : aggregatedAmountMatches[0];
+        }
+
+        private Match ParsePercentOwned(string trimText)
+        {
+            MatchCollection percentOwnedMatches = percentOwnedRegex1.Matches(trimText);
+            if (percentOwnedMatches.Count == 0)
+            {
+                percentOwnedMatches = percentOwnedRegex2.Matches(trimText);
+            }
+            return percentOwnedMatches.Count == 0 ? null : percentOwnedMatches[0];
         }
 
         private string TrimSigns(string text)
@@ -353,7 +403,7 @@ namespace Dentogram
             "CHECK BOX IF THE AGGREGATE",
             "CHECK IF THE AGGREGATE",
         };
-        //AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON 1,073,584 CHECK BOX IF THE AGGREGATE
+
         public static int AggregatedAmountPostfixMaxLength = AggregatedAmountPostfixes.Max(x => x.Length);
 
         public static readonly string[] AggregatedAmountPrefixes =
@@ -388,6 +438,55 @@ namespace Dentogram
              "11 AGGREGATE AMOUNT BENEFICIALLY OWNED {0} BY EACH REPORTING PERSON",
              "9 AGGREGATE AMOUNT BENEFICIALLY OWNED {0} BY EACH REPORTING PERSON",
              */
+        };
+        
+        public static readonly string[] PercentOwnedPostfixes = 
+        {
+            "12 TYPE",
+            "14 TYPE",
+            "12TYPE",
+            "14TYPE",
+            "A SEE ITEM 4 12 TYPE",
+            "COMMON STOCK PAR VALUE 01 12 TYPE",
+            "OF CLASS A COMMON STOCK 1 14 TYPE",
+            "OF COMMON STOCK 14 TYPE",
+            "OF COMMON UNITS 14 TYPE",
+            "OF THE SHARES OF COMMON STOCK 2 14 TYPE",
+            "SEE ALSO ITEM 4B BELOW 12 TYPE",
+            "SEE EXHIBIT A 12 TYPE",
+            "SEE ITEM 4 12 TYPE",
+            "SEE ITEM 5 14 TYPE",
+            "SEE ITEM 5 BELOW 14 TYPE",
+            "SEE ITEM 5 FOR CALCULATION OF OUTSTANDING SHARES 14 TYPE",
+            "SEE RESPONSE TO ITEM 4 12 TYPE",
+            "UNDILUTED 12 TYPE",
+            
+            // Regexps
+            /*
+            "FOR {0} 12 TYPE",
+            "FOR {0} 14 TYPE",
+            */
+        };
+
+        public static int PercentOwnedPostfixMaxLength = PercentOwnedPostfixes.Max(x => x.Length);
+
+        public static readonly string[] PercentOwnedPrefixes =
+        {
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "11PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 1",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11 SEE ITEM 5",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "13 PERCENT OF CLASS REPRESENTED BY AMOUNT OF ROW 11",
+            "13 PERCENTAGE OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "13PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+
+
+            // Regexps
         };
     }
 }
