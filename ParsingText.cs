@@ -36,8 +36,14 @@ namespace Dentogram
         private readonly StringSearch percentOwnedPrefixSearch = new StringSearch(PrefixWorkbook.PercentOwnedPrefixes);
         private readonly StringSearch percentOwnedPostfixSearch = new StringSearch(PrefixWorkbook.PercentOwnedPostfixes);
 
+        private readonly Regex namePersonValueRegex1 = new Regex(@"([\w\s\(\)]+?)(?:\(1\))?(?: \(THE REPORTING PERSON\))?(?: SS OR)? \(?IRS IDENTIFICATION NOS? OF(?: THE)? ABOVE PERSONS?(?: \(ENTITIES ONLY\)|IRS NO)? ?(?:\d{2,2} \d{6,8}|N A|NOT APPLICABLE)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex namePersonValueRegex2 = new Regex(@"([\w\s\(\)]+?)DATED [A-Z]{3,11} \d{1,2} \d{4,4}(?: IRS IDENTIFICATION NOS OF ABOVE PERSONS \(ENTITIES ONLY\))?(?: \d{2,2} \d{6,8})?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex namePersonValueRegex3 = new Regex(@"(?:1 |\d{7,9})?([\w\s\(\)]+?)\(?(?:IRS )?(?:ID(?:ENTIFICATION)?(?: NO)?|EIN|\(B\) TAX ID)? ?(?:\d{2,2} \d{6,8}|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9})\)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex namePersonValueRegex4 = new Regex(@"([\w\s\(\)]+?)\((?:1|NO IRS IDENTIFICATION NO|NONE)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        // PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
+
         private readonly Regex namePersonRegex1 = new Regex(@"(NAMES?(?: ?OF ?REPORTING| ?AND ?IRS) ?[\s\S]{0,100}PERSONS?(?: ?\(?ENTITIES ONLY\)?)?)([\s\S]{0,400}?)2 ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex namePersonRegex2 = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?) ITEM \d", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex namePersonRegex2 = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?) (ITEM \d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         
         private readonly Regex aggregatedAmountRegex1 = new Regex(@"((?:9|11) ?\)? ?AGGREGATED? ?AMOUN?T ?(?:[\s\S]{0,100}PERSONS?(?: ?DISCRETIONARY ?NONDISCRETIONARY ?ACCOUNTS)?|BENEFICIALLY ?OWNED)) ?((?:\d+(?:\,\d+)*)|\*|NONE|SEE ROW 6 ABOVE)[\s\S]*?((?:10|12)? ?(?:CHECK(?: ?BOX)? ?IF(?: ?THE)? ?AGGREGATE|AGGREGATE ?AMOUNT))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex aggregatedAmountRegex2 = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) (ITEM 11)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -60,11 +66,36 @@ namespace Dentogram
         public string TrimForParsing(string text)
         {
             string trimText = TrimSigns(text);
+            /*
+            string trimText = text;
+            trimText = Regex.Replace(trimText, @"\.{2,}", ".");
+            trimText = Regex.Replace(trimText, @",{2,}", ",");
+            */
             trimText = Regex.Replace(trimText, @"_", "");
             trimText = Regex.Replace(trimText, @"[^\w\s\.,\(\)]", " ");
             //trimText = Regex.Replace(trimText, @"[^\w\s\.,]", "");
             trimText = Regex.Replace(trimText, @"\s+", " ");
             return trimText;
+        }
+
+        private StringSearchResult ParseNamePersonValue(StringSearchResult namePersonValue)
+        {
+            foreach (Regex regexp in new []
+            {
+                namePersonValueRegex1,
+                namePersonValueRegex2,
+                namePersonValueRegex3,
+                namePersonValueRegex4,
+            })
+            {
+                Match match = regexp.Match(namePersonValue.Keyword);
+                if (match.Success)
+                {
+                    return new StringSearchResult(namePersonValue.Index + match.Groups[1].Index, match.Groups[1].Value);
+                }
+            }
+
+            return namePersonValue;
         }
 
         public IEnumerable<ParseResult> ParseBySearch(string trimText)
@@ -187,7 +218,7 @@ namespace Dentogram
                         : new StringSearchResult(iNamePersonValue, regionText.Substring(0, namePersonPostfixMatch.Index));
 
                     namePersonPrefixResult.Add(namePersonPrefixMatch);
-                    namePersonValueResult.Add(namePersonValueMatch);
+                    namePersonValueResult.Add(ParseNamePersonValue(namePersonValueMatch));
                     namePersonPostfixResult.Add(namePersonPostfixMatch);
                 }
             }
@@ -318,6 +349,7 @@ namespace Dentogram
         public static int NamePersonMaxLength = 400;
 
 
+        //NAME OF REPORTING PERSON(S) SS OR IRS IDENTIFICATION NO OF ABOVE PERSON(S)
         public static readonly string[] NamePersonPrefixes =
         {
             "1 (ENTITIES ONLY)",
@@ -326,7 +358,7 @@ namespace Dentogram
             "NAME AND IRS IDENTIFICATION NUMBER OF REPORTING PERSON",
             "NAME OF IRS IDENTIFICATION NO OF REPORTING PERSON",
             "NAME OF REPORTING PERSON",
-            "NAME OF REPORTING PERSON (SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
+            "NAME OF REPORTING PERSON (SS OR IRS IDENTIFICATION NO OF ABOVE PERSON)",
             "NAME OF REPORTING PERSON 1 SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
             "NAME OF REPORTING PERSON 1SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
             "NAME OF REPORTING PERSON I R S IDENTIFICATION NO OF ABOVE PERSON (ENTITIES ONLY)",
@@ -334,7 +366,8 @@ namespace Dentogram
             "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSON (ENTITIES ONLY)",
             "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS",
             "NAME OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS (ENTITIES ONLY)",
-            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO(S) OF ABOVE PERSON",
+            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO(S) OF ABOVE PERSON(S)",
+            "NAME OF REPORTING PERSON IRS IDENTIFICATION NO(S) OF ABOVE PERSON(S) (ENTITIES ONLY)",
             "NAME OF REPORTING PERSON IRS IDENTIFICATION NOS OF ABOVE PERSON (ENTITIES ONLY)",
             "NAME OF REPORTING PERSON IRS IDENTIFICATION NOS OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAME OF REPORTING PERSON IRS IDENTIFICATION OF ABOVE PERSON",
@@ -350,6 +383,7 @@ namespace Dentogram
             "NAME OF REPORTING PERSON SS OR IRSIDENTIFICATION NO OF ABOVE PERSON",
             "NAME OF REPORTING PERSON(S) IRS IDENTIFICATION NO OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAME OF REPORTING PERSON(S) SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
+            "NAME OF REPORTING PERSON(S) SS OR IRS IDENTIFICATION NO OF ABOVE PERSON(S)",
             "NAME OF REPORTING PERSONIRS IDENTIFICATION NO OF ABOVE PERSONS",
             "NAME OF REPORTING PERSONOR IRS IDENTIFICATION NO OF ABOVE PERSON (ENTITIES ONLY)",
             "NAME OF REPORTING PERSONS",
@@ -360,6 +394,8 @@ namespace Dentogram
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSONS",
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO(S) OF ABOVE PERSON",
+            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO(S) OF ABOVE PERSON(S)",
+            "NAME OF REPORTING PERSONS IRS IDENTIFICATION NO(S) OF ABOVE PERSON(S) (ENTITIES ONLY)",
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS",
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAME OF REPORTING PERSONS IRS IDENTIFICATION NOS OF REPORTING PERSONS (ENTITIES ONLY)",
@@ -376,6 +412,8 @@ namespace Dentogram
             "NAMES OF REPORTING PERSON IRS IDENTIFICATION NO OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAMES OF REPORTING PERSON IRS IDENTIFICATION NOS OF ABOVE PERSON (ENTITIES ONLY)",
             "NAMES OF REPORTING PERSON SS OR IRS IDENTIFICATION NO OF ABOVE PERSON",
+            "NAMES OF REPORTING PERSON(S)",
+            "NAMES OF REPORTING PERSON(S) (ENTITIES ONLY)",
             "NAMES OF REPORTING PERSONS",
             "NAMES OF REPORTING PERSONS (ENTITIES ONLY)",
             "NAMES OF REPORTING PERSONS AND IRS IDENTIFICATION NOS OF SUCH PERSONS (ENTITIES ONLY)",
@@ -393,6 +431,7 @@ namespace Dentogram
             "NAMES OF REPORTING PERSONSIRS IDENTIFICATION NO OF ABOVE PERSONS (ENTITIES ONLY)",
             "NAMES OF REPORTING PERSONSIRS IDENTIFICATION NOS OF ABOVE PERSONS (ENTITIES ONLY)",
 
+
             // Regexps
             /*
             "NAME OF REPORTING PERSON {0} IRS IDENTIFICATION NO OF ABOVE PERSON",
@@ -407,6 +446,8 @@ namespace Dentogram
 
         public static readonly string[] NamePersonPostfixes =
         {
+            "(2) CHECK",
+            "(2) MEMBER",
             "2) CHECK",
             "2) MEMBER",
             "2 CHECK",
@@ -420,6 +461,10 @@ namespace Dentogram
 
         public static readonly string[] AggregatedAmountPrefixes =
         {
+            "(11) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "(9) AGGREGATE AMOUNT BENEFICIALLY OWNED",
+            "(9) AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
+            "(9)AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUNT BENEFICALLY OWNED BY EACH REPORTING PERSON",
             "11 AGGREGATE AMOUNT BENEFICIALLY OWNED",
             "11 AGGREGATE AMOUNT BENEFICIALLY OWNED BY EACH PERSON",
@@ -458,6 +503,12 @@ namespace Dentogram
 
         public static readonly string[] AggregatedAmountPostfixes = 
         {
+            "(10) CHECK BOX IF THE AGGREGATE",
+            "(10) CHECK IF AGGREGATE",
+            "(10) CHECK IF THE AGGREGATE",
+            "(10)CHECK IF THE AGGREGATE",
+            "(12) CHECK BOX IF THE AGGREGATE",
+            "(12) CHECK IF THE AGGREGATE",
             "10 CHECK BOX IF AGGREGATE",
             "10 CHECK BOX IF THE AGGREGATE",
             "10 CHECK IF AGGREGATE",
@@ -491,6 +542,15 @@ namespace Dentogram
 
         public static readonly string[] PercentOwnedPrefixes =
         {
+            "(11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "(11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "(11) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "(11)PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
+            "(13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
+            "(13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
+            "(13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
+            "(13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 11",
+            "(13) PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW 9",
             "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW",
             "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (11)",
             "11 PERCENT OF CLASS REPRESENTED BY AMOUNT IN ROW (9)",
@@ -532,6 +592,8 @@ namespace Dentogram
         // 14) TYPE
         public static readonly string[] PercentOwnedPostfixes = 
         {
+            "(12) TYPE",
+            "(14) TYPE",
             "12 TYPE",
             "14 TYPE",
             "12) TYPE",

@@ -321,9 +321,9 @@ namespace Dentogram
                 ParsingText parcer = new ParsingText();
                 var fileInfos = GetFiles().
                     Zip(GetTextes(), (fileName, text) => new { fileName, text }).
+                    Take(2000).
                     SelectMany(x => parcer.ParseBySearch(x.text).Select(parsedResult => new { x.fileName, x.text, parsedResult })).
                     //Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseByRegexp(text) }).
-                    //Take(2000).
                     Where(x => File.Exists(x.fileName)).
                     ToList();
             
@@ -371,9 +371,9 @@ namespace Dentogram
                             string.IsNullOrEmpty(x.parsedResult.PercentOwnedPrefix)).
                         ToList();
                 
-                HashSet<string> namePersonHash = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonPrefix));
-                HashSet<string> namePersonHash1 = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonValue));
-                HashSet<string> namePersonHash2 = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonPostfix));
+                HashSet<string> namePersonPrefix = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonPrefix));
+                HashSet<string> namePersonValue = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonValue));
+                HashSet<string> namePersonPostfix = new HashSet<string>(parcedNamePerson.Select(x => x.parsedResult.NamePersonPostfix));
 
                 HashSet<string> aggregatedAmountPrefix = new HashSet<string>(parcedAggregatedAmount.Select(x => x.parsedResult.AggregatedAmountPrefix));
                 HashSet<string> aggregatedAmountValue = new HashSet<string>(parcedAggregatedAmount.Select(x => x.parsedResult.AggregatedAmountValue));
@@ -383,15 +383,14 @@ namespace Dentogram
                 HashSet<string> percentOwnedValue = new HashSet<string>(parcedPercentOwned.Select(x => x.parsedResult.PercentOwnedValue));
                 HashSet<string> percentOwnedPostfix = new HashSet<string>(parcedPercentOwned.Select(x => x.parsedResult.PercentOwnedPostfix));
 
-                /*
                 var matches = parcedNamePerson.
-                    Select(x => new { text = $"{x.parsedResult.NamePersonPrefix}[{x.parsedResult.NamePersonValue}]{x.parsedResult.NamePersonPostfix}", fileName = x.fileName}).
+                    //Select(x => new { text = $"{x.parsedResult.NamePersonPrefix}[{x.parsedResult.NamePersonValue}]{x.parsedResult.NamePersonPostfix}", fileName = x.fileName}).
+                    Select(x => new { text = $"{x.parsedResult.NamePersonValue}", fileName = x.fileName}).
                     GroupBy(x => x.text).
                     Select(x => new { text = x.First().text, fileName = x.First().fileName }).
                     ToArray();
                 var matcheFiles = matches.Select(x => $"{x.fileName}").ToArray();
                 var matcheTextes = matches.Select(x => $"{x.text}").ToArray();
-                */
                 /*
                 var matches = parcedPercentOwned.
                     Select(x => new { text = $"{x.parsedResult.PercentOwnedPrefix}[{x.parsedResult.PercentOwnedValue}]{x.parsedResult.PercentOwnedPostfix}", fileName = x.fileName}).
@@ -612,8 +611,8 @@ namespace Dentogram
                     string line = reader.ReadLine();
                     while (line != null)
                     {
-                        yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
-                        //yield return line;
+                        //yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        yield return line;
                         line = reader.ReadLine();
                     }
                 }
