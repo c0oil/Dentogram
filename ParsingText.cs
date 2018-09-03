@@ -15,6 +15,7 @@ namespace Dentogram
             public string NamePersonValue;
             public string NamePersonPostfix;
             public string NamePerson;
+            public string NamePersonTest;
 
             public string AggregatedAmountPrefix;
             public string AggregatedAmountValue;
@@ -32,10 +33,22 @@ namespace Dentogram
         // Name Person
         private readonly Regex[] namePersonPrefixRegex =
         {
-            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? OR| AND)?(?: ?I ?R ?S ?IN?DENTIFICATION(?: NUMBERS?| NO\(?S?S?\)?)?(?: O[FR] (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?)?(?: \(ENTIT(?:Y|IES) ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? O[FR]| AND)?(?: ?I ?R ?S ?IN?DENTIFICATION(?: NUMBERS?| NO\(?S?S?\)?)?(?: O[FR] (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?)?(?: \(ENTIT(?:Y|IES) ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"NAME (?:AND|OR) IRS(?: IDENTIFICATION)? (?:NO|NUMBER) OF REPORTING PERSONS?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"1 \(ENTITIES ONLY\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
+
+        private readonly Regex[] namePersonValueRegex =
+        {
+            new Regex(@"([\w\s\(\),]{4,}?)\( ?(?:1|NO IRS IDENTIFICATION N(?:O|UMBER)|NONE|NO EIN|N A) ?\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)U ?A ?D(?:ATED)? (?:[A-Z]{3,11} \d{1,2} \d{4,4}|\d{2,2} \d{2,2} \d{2,2})", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:SS OR|THE REPORTING PERSON ?\)?)? \(? ?(?:NO )?IRS IDENTIFICATION N(?:O|UMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER) ?(?:(?:\d{2,2} )?\d{6,8})", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"^ ?(?:1 ?\)|1 )?([\w\s\(\),]{4,}?) ?(?:\d{2,2} \d{6,8}|\d{7,9})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"^ ?(?:\d{2,2} \d{6,8}|\d{7,9}|1 ?\)|1 )([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+
+        };
+        /*
         private readonly Regex[] namePersonValueRegex =
         {
             new Regex(@"([\w\s\(\),]{4,}?)(?:\(1\))?(?: \( ?THE REPORTING PERSON ?\))?(?:(?: SS)? OR)?(?: DATED [A-Z]{3,11} \d{1,2}(?: \d{1,2})? \d{2,4})? ?\(?(?:IRS)? IDENTIFICATION NOS? OF(?: THE)? ABOVE PERSONS?(?: \(ENTITIES ONLY\)|IRS NO)? ?(?:\d{2,2} \d{6,8}|N A|NOT APPLICABLE)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
@@ -43,9 +56,10 @@ namespace Dentogram
             new Regex(@"^ ?(?:\d{2,2} )?\d{6,8} ([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"(?:1)?([\w\s\(\),]{4,}?)\(? ?(?:IRS)? ?(?:(?:FEDERAL )?ID(?:ENTIFICATION)?(?: NO| NUMBER)?|NO|EIN|(?:\(B\) )?TAX(?: ID)?|DIRECTLY AND ON BEHALF OF CERTAIN SUBSIDIARIES)? ?(?:\d{2,2} (?:\d{6,8}|\d{3,3} \d{4,4})|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9})\)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"([\w\s\(\),]{4,}?)\((?:1|NO IRS IDENTIFICATION NO|NONE|NO EIN|N A)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(?:\(VOLUNTARY\|\(OPTIONAL\)|1 ?\)? |\.{2,})(?: EIN NO)?([\w\s\(\),]{4,}?)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(?:\(VOLUNTARY\|\(OPTIONAL\)|1 ?\)? |\.{2,})(?: EIN NO)?([\w\s\(\),]{4,})", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             //  PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
         };
+        */
         private readonly Regex[] namePersonPostfixRegex =
         {
             new Regex(@"\(?(?:2|14)\)? ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
@@ -133,6 +147,7 @@ namespace Dentogram
                         NamePersonValue = namePersonValueMatch.Keyword,
                         NamePersonPostfix = namePersonPostfixMatch.Keyword,
                         NamePerson = Test(trimText, namePersonPrefixMatch, namePersonPostfixMatch),
+                        NamePersonTest = Test1(trimText, namePersonPrefixMatch, namePersonValueMatch, namePersonPostfixMatch),
 
                         AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
                         AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
@@ -154,15 +169,32 @@ namespace Dentogram
             }
         }
 
-        private string Test(string namePersonRegion, StringSearchResult aggregatedAmountPrefixResult, StringSearchResult aggregatedAmountPostfixResult)
+        private string Test(string namePersonRegion, StringSearchResult prefixResult, StringSearchResult postfixResult)
         {
             try
             {
-                return aggregatedAmountPrefixResult.IsEmpty || aggregatedAmountPostfixResult.IsEmpty
+                return prefixResult.IsEmpty || postfixResult.IsEmpty
                     ? string.Empty
                     : namePersonRegion.Substring(
-                        aggregatedAmountPrefixResult.Index + aggregatedAmountPrefixResult.Keyword.Length,
-                        aggregatedAmountPostfixResult.Index - (aggregatedAmountPrefixResult.Index + aggregatedAmountPrefixResult.Keyword.Length));
+                        prefixResult.Index + prefixResult.Keyword.Length,
+                        postfixResult.Index - (prefixResult.Index + prefixResult.Keyword.Length));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+
+        private string Test1(string namePersonRegion, StringSearchResult prefixResult, StringSearchResult valueResult, StringSearchResult postfixResult)
+        {
+            try
+            {
+                return valueResult.IsEmpty
+                    ? string.Empty
+                    : namePersonRegion.Substring(prefixResult.Index + prefixResult.Keyword.Length, valueResult.Index - (prefixResult.Index + prefixResult.Keyword.Length)) +
+                      "{0}" +
+                      namePersonRegion.Substring(valueResult.Index + valueResult.Keyword.Length, postfixResult.Index - (valueResult.Index + valueResult.Keyword.Length));
             }
             catch (Exception e)
             {
