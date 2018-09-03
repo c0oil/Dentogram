@@ -10,5 +10,6 @@ namespace Dentogram
     {
         public const string FileNames = @"C:\SecDaily\pathesExt.txt";
         public const string FileTextes = @"C:\SecDaily\textes.txt";
+        public const string FileResults = @"E:\SecDaily\New folder\Dentogram\ResultFile.txt";
     }
 }

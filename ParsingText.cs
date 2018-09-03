@@ -14,6 +14,7 @@ namespace Dentogram
             public string NamePersonPrefix;
             public string NamePersonValue;
             public string NamePersonPostfix;
+            public string NamePerson;
 
             public string AggregatedAmountPrefix;
             public string AggregatedAmountValue;
@@ -31,33 +32,36 @@ namespace Dentogram
         // Name Person
         private readonly Regex[] namePersonPrefixRegex =
         {
-            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?S?)(?: [1\(]? ?SS OR| AND)?(?: ?I ?R ?S ?IDENTIFICATION(?: NUMBERS?| NO\(?S?S?\)?)? OF (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?(?: \(ENTITIES ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? OR| AND)?(?: ?I ?R ?S ?IN?DENTIFICATION(?: NUMBERS?| NO\(?S?S?\)?)?(?: O[FR] (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?)?(?: \(ENTIT(?:Y|IES) ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"NAME (?:AND|OR) IRS(?: IDENTIFICATION)? (?:NO|NUMBER) OF REPORTING PERSONS?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"1 \(ENTITIES ONLY\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
         private readonly Regex[] namePersonValueRegex =
         {
-            new Regex(@"([\w\s\(\)]+?)(?:\(1\))?(?: \(THE REPORTING PERSON\))?(?: SS OR)? \(?IRS IDENTIFICATION NOS? OF(?: THE)? ABOVE PERSONS?(?: \(ENTITIES ONLY\)|IRS NO)? ?(?:\d{2,2} \d{6,8}|N A|NOT APPLICABLE)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"([\w\s\(\)]+?)DATED [A-Z]{3,11} \d{1,2} \d{4,4}(?: IRS IDENTIFICATION NOS OF ABOVE PERSONS \(ENTITIES ONLY\))?(?: \d{2,2} \d{6,8})?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"(?:1 |\d{7,9})?([\w\s\(\)]+?)\(?(?:IRS )?(?:ID(?:ENTIFICATION)?(?: NO)?|EIN|\(B\) TAX ID)? ?(?:\d{2,2} \d{6,8}|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9})\)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"([\w\s\(\)]+?)\((?:1|NO IRS IDENTIFICATION NO|NONE)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)(?:\(1\))?(?: \( ?THE REPORTING PERSON ?\))?(?:(?: SS)? OR)?(?: DATED [A-Z]{3,11} \d{1,2}(?: \d{1,2})? \d{2,4})? ?\(?(?:IRS)? IDENTIFICATION NOS? OF(?: THE)? ABOVE PERSONS?(?: \(ENTITIES ONLY\)|IRS NO)? ?(?:\d{2,2} \d{6,8}|N A|NOT APPLICABLE)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)DATED [A-Z]{3,11} \d{1,2}(?: \d{1,2})? \d{2,4}(?: IRS IDENTIFICATION NOS OF ABOVE PERSONS \(ENTITIES ONLY\))?(?: \d{2,2} \d{6,8})?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"^ ?(?:\d{2,2} )?\d{6,8} ([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(?:1)?([\w\s\(\),]{4,}?)\(? ?(?:IRS)? ?(?:(?:FEDERAL )?ID(?:ENTIFICATION)?(?: NO| NUMBER)?|NO|EIN|(?:\(B\) )?TAX(?: ID)?|DIRECTLY AND ON BEHALF OF CERTAIN SUBSIDIARIES)? ?(?:\d{2,2} (?:\d{6,8}|\d{3,3} \d{4,4})|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9})\)?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"([\w\s\(\),]{4,}?)\((?:1|NO IRS IDENTIFICATION NO|NONE|NO EIN|N A)\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(?:\(VOLUNTARY\|\(OPTIONAL\)|1 ?\)? |\.{2,})(?: EIN NO)?([\w\s\(\),]{4,}?)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            //  PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
         };
         private readonly Regex[] namePersonPostfixRegex =
         {
-            new Regex(@"\(?2\)? ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"\(?(?:2|14)\)? ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
         
         // Aggregated Amount
         private readonly Regex aggregatedAmountPrefixRegex = new Regex(@"(?:\(?(?:9|11)\)? ?)?AGGREGATED? AMOUN?T(?:(?: OF)? BENE?FICI?AL?LY)? OWNED(?: BY(?: EACH)?(?: REPORTING)? ?PERSON(?: \(DISCRETIONARY NON DISCRETIONARY ACCOUNTS\))?)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex aggregatedAmountPostfixRegex = new Regex(@"(?:\(?1[02]\)? ?)?(?:CHECK(?: BOX)? IF(?: THE)? AGGREGATE|AGGREGATE AMOUNT)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex aggregatedAmountValueRegex = new Regex(@"[^\(]((?:(?:\d{1,3}(?: \d{3,3})+)|\d+(?:\,\d+)*)|\*|NONE|NIL SHARES OF COMMON STOCK|SEE (?:ITEM|ROW) \d)(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex aggregatedAmountValueRegex = new Regex(@"(?:^|[^\(])((?:(?:\d{1,3}(?: \d{3,3})+)|\d+(?:\,\d+)*)|\*|NONE|NIL SHARES OF COMMON STOCK|SEE (?:ITEM|ROW) \d)(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Percent Owned
-        private readonly Regex percentOwnedPrefixRegex = new Regex(@"\(?1?[123]\)? ?PERCENT(?:AGE)? OF (?:CLASS|SERIES) REPRESENTED(?: BY)?(?: AMOUNT)?(?: IN| OF)? (?:ROW|BOX)(?: \((?:9|11)\))?(?: \(SEE ITEM 5\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex percentOwnedPrefixRegex = new Regex(@"\(?1?[123]\)? ?PERCENT(?:AGE)? OF (?:CLASS|SERIES) REPRESENTED(?: BY)?(?: AMOUNT)?(?: IN| OF)? (?:ROW|BOX)(?: ?(?:\( ?)?(?:9|11)(?: ?\))?)?(?: ?\(SEE ITEM 5\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex percentOwnedPostfixRegex = new Regex(@"(?:\(?1[24]\)? ?TYPE|TYPE OF REPORTING PERSON)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex percentOwnedValueRegex = new Regex(@"[^\(]((?:\d+(?:\.\d+)?)|\*) ?%?(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex percentOwnedValueRegex = new Regex(@"(?:^|[^\(])(?:\d+(?:\,\d+)+ \d+(?:\,\d+)+ )?((?:\d+(?:\.\d+)?)|\*) ?%?(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private readonly Regex namePersonFullRegex = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?) (ITEM \d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex namePersonFullRegex = new Regex(@"(CUSIP(?: NUMBER)? [\w]+ ITEM 1 REPORTING PERSON) ([\s\S]{0,200}?)(?:\d{2,2} \d{6,8})? (ITEM \d)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex aggregatedFullAmountRegex = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) (ITEM 11)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex percentOwnedFullRegex = new Regex(@"(ITEM 11) ((?:\d+(?:\.\d+)?)|\*) ?%? (ITEM 12)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
@@ -128,6 +132,7 @@ namespace Dentogram
                         NamePersonPrefix = namePersonPrefixMatch.Keyword,
                         NamePersonValue = namePersonValueMatch.Keyword,
                         NamePersonPostfix = namePersonPostfixMatch.Keyword,
+                        NamePerson = Test(trimText, namePersonPrefixMatch, namePersonPostfixMatch),
 
                         AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
                         AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
@@ -206,9 +211,14 @@ namespace Dentogram
                 {
                     int iNamePersonValue = namePersonPrefixMatch.Index + namePersonPrefixMatch.Keyword.Length;
                     StringSearchResult namePersonPostfixMatch = ParseFirstByRegexp(trimText.Substring(iNamePersonValue, ParsingTextHelper.NamePersonMaxLength), namePersonPostfixRegex, 0).OffsetResult(iNamePersonValue);
+                    string namePersonValueText = namePersonPostfixMatch.IsEmpty ? string.Empty: trimText.Substring(iNamePersonValue, namePersonPostfixMatch.Index - iNamePersonValue);
                     StringSearchResult namePersonValueMatch = namePersonPostfixMatch.IsEmpty 
                         ? StringSearchResult.Empty
-                        : ParseFirstByRegexp(trimText.Substring(iNamePersonValue, namePersonPostfixMatch.Index - iNamePersonValue), namePersonValueRegex, 1).OffsetResult(iNamePersonValue);
+                        : ParseFirstByRegexp(namePersonValueText, namePersonValueRegex, 1).OffsetResult(iNamePersonValue);
+                    if (!namePersonPostfixMatch.IsEmpty && namePersonValueMatch.IsEmpty)
+                    {
+                        namePersonValueMatch = new StringSearchResult(iNamePersonValue, namePersonValueText);
+                    }
 
                     namePersonPrefixResult.Add(namePersonPrefixMatch);
                     namePersonValueResult.Add(namePersonValueMatch);
