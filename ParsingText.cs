@@ -33,20 +33,22 @@ namespace Dentogram
         // Name Person
         private readonly Regex[] namePersonPrefixRegex =
         {
-            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? O[FR]| AND)?(?: ?I ?R ?S ?IN?DENTIFICATION(?: NUMBERS?| NO\(?S?S?\)?)?(?: O[FR] (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?)?(?: \(ENTIT(?:Y|IES) ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? ?O[FR]| AND)?(?: ?(?:I?RS|I ?R ?S) ?IN?DENTIFICATIOI?N(?: NUMBERS?| NO\(?S?S?\)?)?(?: O[FR] (?:ABOVE|REPORTING) PERSON\(?S?S?\)?)?)?(?: \(ENTIT(?:Y|IES) ONLY\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"NAME (?:AND|OR) IRS(?: IDENTIFICATION)? (?:NO|NUMBER) OF REPORTING PERSONS?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"1 \(ENTITIES ONLY\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
 
         private readonly Regex[] namePersonValueRegex =
         {
-            new Regex(@"([\w\s\(\),]{4,}?)\( ?(?:1|NO IRS IDENTIFICATION N(?:O|UMBER)|NONE|NO EIN|N A) ?\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"([\w\s\(\),]{4,}?)U ?A ?D(?:ATED)? (?:[A-Z]{3,11} \d{1,2} \d{4,4}|\d{2,2} \d{2,2} \d{2,2})", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:SS OR|THE REPORTING PERSON ?\)?)? \(? ?(?:NO )?IRS IDENTIFICATION N(?:O|UMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER) ?(?:(?:\d{2,2} )?\d{6,8})", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"^ ?(?:1 ?\)|1 )?([\w\s\(\),]{4,}?) ?(?:\d{2,2} \d{6,8}|\d{7,9})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"^ ?(?:\d{2,2} \d{6,8}|\d{7,9}|1 ?\)|1 )([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-
+            new Regex(@"([\w\s\(\),]{4,}?)\( ?(?:1|NO IRS IDENTIFICATION N(?:O|UMBER)|NONE|NO EIN|N A) ?\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                                              // [name person] [(word)]
+            new Regex(@"([\w\s\(\),]{4,}?)(?:U ?A ?D(?:ATED)?|DATED) (?:[A-Z]{3,11} \d{1,2} \d{4,4}|\d{1,2} \d{2,2} \d{2,2})", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                            // [name person] [date prefix] [date]
+            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:SS OR|THE REPORTING PERSON ?\)?)? ?\(? ?(?:NO )?IRS(?: EMPLOYER)? IDENTIFICATION N(?:O|UMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                         // [name person] IRS IDENTIFICATION NO
+            new Regex(@"([\w\s\(\),]{4,}?)IDENTIFICATION NOS OF ABOVE PERSONS", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                                                                           // [name person] IDENTIFICATION NOS OF ABOVE PERSONS
+            new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER) ?(?:(?:\d{2,2} )?\d{6,8})", RegexOptions.Compiled | RegexOptions.IgnoreCase),   // [name person] [id prefix] [id]
+            new Regex(@"^ ?(?:1 ?\)|1 )?([\w\s\(\),]{4,}?)\(? ?(?:\d{2,2} \d{6,8}|\d{2,2} \d{3,3} \d{4,4}|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9}) ?\)? ?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                             // [start] [1] [name person] [id] [end]
+            new Regex(@"^([\w\s\(\),]{4,}?) ID N(?:A|O(?:T APPLICABLE)?) ?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                                                                             // [start] [name person] [word] [end]
+            new Regex(@"^ ?(?:\d{2,2} \d{6,8} |\d{6,9} |\(? ?1 ?\)|1 |\(VOLUNTARY\)(?: EIN NO)?|\(OPTIONAL\))([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                         // [start] ([id]|[(word)]) [name person] [end]
+            //  PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
         };
         /*
         private readonly Regex[] namePersonValueRegex =
@@ -62,13 +64,13 @@ namespace Dentogram
         */
         private readonly Regex[] namePersonPostfixRegex =
         {
-            new Regex(@"\(?(?:2|14)\)? ?(?:CHECK|MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"\(?(?:2|14)\)? ?(?:CHECK|(?:IF A )?MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
         
         // Aggregated Amount
         private readonly Regex aggregatedAmountPrefixRegex = new Regex(@"(?:\(?(?:9|11)\)? ?)?AGGREGATED? AMOUN?T(?:(?: OF)? BENE?FICI?AL?LY)? OWNED(?: BY(?: EACH)?(?: REPORTING)? ?PERSON(?: \(DISCRETIONARY NON DISCRETIONARY ACCOUNTS\))?)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex aggregatedAmountPostfixRegex = new Regex(@"(?:\(?1[02]\)? ?)?(?:CHECK(?: BOX)? IF(?: THE)? AGGREGATE|AGGREGATE AMOUNT)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private readonly Regex aggregatedAmountValueRegex = new Regex(@"(?:^|[^\(])((?:(?:\d{1,3}(?: \d{3,3})+)|\d+(?:\,\d+)*)|\*|NONE|NIL SHARES OF COMMON STOCK|SEE (?:ITEM|ROW) \d)(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex aggregatedAmountValueRegex = new Regex(@"(?:^|[^\(])((?:(?:\d{1,3}(?: \d{3,3})+)|\d+(?:\,\d+)*)|\*|NONE|N A|NIL(?: SHARES OF COMMON STOCK)?|SEE (?:ITEM|ROW) \d)(?!\))", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Percent Owned
         private readonly Regex percentOwnedPrefixRegex = new Regex(@"\(?1?[123]\)? ?PERCENT(?:AGE)? OF (?:CLASS|SERIES) REPRESENTED(?: BY)?(?: AMOUNT)?(?: IN| OF)? (?:ROW|BOX)(?: ?(?:\( ?)?(?:9|11)(?: ?\))?)?(?: ?\(SEE ITEM 5\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -79,7 +81,7 @@ namespace Dentogram
         private readonly Regex aggregatedFullAmountRegex = new Regex(@"(ITEM 9) ((?:\d+(?:\,\d+)*)|\*|NONE) (ITEM 11)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private readonly Regex percentOwnedFullRegex = new Regex(@"(ITEM 11) ((?:\d+(?:\.\d+)?)|\*) ?%? (ITEM 12)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        private readonly Regex punctuationRegex = new Regex(@"\D[\,\.](?=\D)|\D[\,\.](?=\d)|\d[\,\.](?=\D)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private readonly Regex punctuationRegex = new Regex(@"(?<=\D)[\,\.](?=\D)|(?<=\D)[\,\.](?=\d)|(?<=\d)[\,\.](?=\D)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public string TrimForClustering(string text)
         {
@@ -92,14 +94,8 @@ namespace Dentogram
         public string TrimForParsing(string text)
         {
             string trimText = TrimSigns(text);
-            /*
-            string trimText = text;
-            trimText = Regex.Replace(trimText, @"\.{2,}", ".");
-            trimText = Regex.Replace(trimText, @",{2,}", ",");
-            */
-            trimText = Regex.Replace(trimText, @"_", "");
+            trimText = Regex.Replace(trimText, "_", ""); // Replace separately cause '_' include in \w
             trimText = Regex.Replace(trimText, @"[^\w\s\.,\(\)]", " ");
-            //trimText = Regex.Replace(trimText, @"[^\w\s\.,]", "");
             trimText = Regex.Replace(trimText, @"\s+", " ");
             return trimText;
         }
@@ -126,7 +122,7 @@ namespace Dentogram
 
                     int namePersonRegionLength = i + 1 < namePersonPrefixResult.Count 
                         ? namePersonPrefixResult[i + 1].Index - namePersonPrefixMatch.Index
-                        : Math.Min(namePersonPrefixMatch.Keyword.Length + namePersonValueMatch.Keyword.Length + 1400, trimText.Length - namePersonPrefixMatch.Index);
+                        : Math.Min(namePersonPrefixMatch.Keyword.Length + namePersonValueMatch.Keyword.Length + ParsingTextHelper.NamePersonRegionMaxLength, trimText.Length - namePersonPrefixMatch.Index);
                     string namePersonRegion = trimText.Substring(namePersonPrefixMatch.Index, namePersonRegionLength);
                 
                     StringSearchResult aggregatedAmountPrefixResult;
@@ -322,7 +318,7 @@ namespace Dentogram
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < matches.Count; i++)
             {
-                int matchIndex = matches[i].Value.Length == 2 ? matches[i].Index + 1 : matches[i].Index;
+                int matchIndex = matches[i].Index;
                 builder.Append(text.Substring(prevMatchIndex, matchIndex - prevMatchIndex));
 
                 prevMatchIndex = matchIndex + 1;
@@ -334,6 +330,7 @@ namespace Dentogram
 
     public static class ParsingTextHelper
     {
+        public static int NamePersonRegionMaxLength = 1400;
         public static int NamePersonMaxLength = 450;
 
         public static StringSearchResult OffsetResult(this StringSearchResult result, int offset)

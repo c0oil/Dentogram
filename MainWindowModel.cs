@@ -4,17 +4,20 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using AngleSharp.Dom;
+using AngleSharp.Dom.Html;
+using AngleSharp.Parser.Html;
 using Dentogram.Clustering;
 
 namespace Dentogram
 {
     public class MainWindowModel : ViewModelBase
     {
-        private int fileIndex;
         private List<string> files;
         private List<string> textes;
         private List<string> parsedRegions;
@@ -319,12 +322,12 @@ namespace Dentogram
                 var sw = Stopwatch.StartNew();
 
                 ParsingText parcer = new ParsingText();
-                var fileInfos = GetFiles().
-                    Zip(GetTextes(), (fileName, text) => new { fileName, text }).
+                //var fileInfos = ParseAndGetTextes(GetFiles()).
+                var fileInfos = GetTextes(GetFiles()).
+                    Where(x => !string.IsNullOrEmpty(x.Item2)).
+                    Select(x => new { fileName = x.Item1, text = parcer.TrimForParsing(x.Item2) }).
                     //Take(2000).
                     SelectMany(x => parcer.ParseBySearch(x.text).Select(parsedResult => new { x.fileName, x.text, parsedResult })).
-                    //Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseByRegexp(text) }).
-                    Where(x => File.Exists(x.fileName)).
                     ToList();
             
                 sw.Stop();
@@ -372,7 +375,8 @@ namespace Dentogram
                         ToList();
                 
                 var matches = parcedAggregatedAmount.
-                    //Select(x => new { text = $"{x.parsedResult.NamePersonPrefix}[{x.parsedResult.NamePersonValue}]{x.parsedResult.NamePersonPostfix}", fileName = x.fileName}).
+                    //GroupBy(x => x.parsedResult.NamePersonValue).
+                    //Select(x => x.First()).
                     Select(x => new
                     {
                         textNamePerson = $"{x.parsedResult.NamePersonPrefix}[{x.parsedResult.NamePerson}]{x.parsedResult.NamePersonPostfix}",
@@ -383,19 +387,9 @@ namespace Dentogram
                         valuePercentOwned = x.parsedResult.PercentOwnedValue,
                         fileName = x.fileName
                     }).
-                    /*
-                    GroupBy(x => x.text).
                     Select(x => new
                     {
-                        text = x.First().text, 
-                        fileName = x.First().fileName, 
-                        value = x.First().value, 
-                        toWrite = $"{x.First().text}\t{x.First().value}\t{x.First().fileName}"
-                    }).
-                    */
-                    Select(x => new
-                    {
-                        toWrite = $"{x.textNamePerson}\t{x.valueNamePerson}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
+                        toWrite = $"{x.textNamePerson}\t{x.valueNamePerson}\t{x.valueNamePerson.Length}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
                     }).
                     ToArray();
 
@@ -446,48 +440,6 @@ namespace Dentogram
                 throw;
             }
         }
-
-        /*
-        public void LoadFiles()
-        {
-            ParsingText parcer = new ParsingText();
-            var fileInfos = GetFiles().
-                Zip(GetTextes(), (fileName, text) => new { fileName, text, parsedResult = parcer.ParseTable(text) }).
-                Take(4000).
-                Where(x => File.Exists(x.fileName)).
-                ToList();
-            
-            var notParced = fileInfos.
-                Where(x => 
-                    !string.IsNullOrEmpty(x.text) && 
-                    !string.IsNullOrEmpty(x.parsedResult.NamePersonValue) && 
-                    string.IsNullOrEmpty(x.parsedResult.AggregatedAmountValue)).
-                ToList();
-            
-            var parced = fileInfos.
-                Where(x => 
-                    !string.IsNullOrEmpty(x.text) && 
-                    !string.IsNullOrEmpty(x.parsedResult.NamePersonValue) && 
-                    !string.IsNullOrEmpty(x.parsedResult.AggregatedAmountValue)).
-                ToList();
-
-            HashSet<string> namePersonHash= new HashSet<string>(parced.Select(x => x.parsedResult.NamePersonPrefix));
-            //HashSet<string> aggregatedAmountHash= new HashSet<string>(parced.Select(x => x.parsedResult.AggregatedAmountPrefix));
-
-            //var fileInfos1 = notParced.Select(x => new { x.fileName, x.text, parsedText = parcer.ParseTableTest(x.text) }).Where(x => !string.IsNullOrEmpty(x.parsedText[0])).ToList();
-
-            //var tt = notParced.Select(x => x.text).ToArray();
-            //var t = notParced.Select(x => x.fileName).ToArray();
-            
-            textes = notParced.Select(x => x.text).ToList();
-            files = notParced.Select(x => x.fileName).ToList();
-            //dataSets = notParced.Select(x => parcer.TrimForClustering(x.text)).ToList();
-            parsedRegions = notParced.Select(x => x.parsedResult.Region).ToList();
-            dataSets = notParced.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
-
-            FilesDescription = $"All files: {fileInfos.Count}; Not parced files: {notParced.Count}";
-        }
-        */
 
         public void Start()
         {
@@ -561,17 +513,40 @@ namespace Dentogram
         {
             return new Node(child0, child1) { Name = name };
         }
-
         /*
+        public static void WriteFiles()
+        {
+            List<string> toWrite = new List<string>();
+
+            using (var fileStream = new FileStream(@"E:\SecDaily\pathes.txt", FileMode.Open))
+            {
+                using (var reader = new StreamReader(fileStream))
+                {
+                    string line = reader.ReadLine();
+                    while (line != null)
+                    {
+                        var fileLoadResult = FileManager.Default.GetFullPath(line);
+                        toWrite.Add(fileLoadResult.LocalName);
+                        line = reader.ReadLine();
+                    }
+                }
+            }
+
+            File.WriteAllLines(@"E:\SecDaily\pathesExt.txt", toWrite);
+        }
+        */
+
         public void WriteTextes()
         {
             HtmlParser htmlParser = new HtmlParser();
             List<string> toWrite = new List<string>();
-            
+            List<string> empty = new List<string>();
+
             foreach (string path in GetFiles())
             {
                 if (!File.Exists(path))
                 {
+                    toWrite.Add(string.Empty);
                     continue;
                 }
 
@@ -598,7 +573,12 @@ namespace Dentogram
                                     continue;
                                 }
 
-                                string trimText = Regex.Replace(text.ToUpperInvariant(), @"\s+", " ");
+                                if (string.IsNullOrEmpty(text))
+                                {
+                                    empty.Add(text);
+                                }
+
+                                string trimText = Regex.Replace(text, @"\s+", " ");
 
                                 toWrite.Add(trimText);
                             }
@@ -607,9 +587,8 @@ namespace Dentogram
                 }
 
             }
-            File.WriteAllLines(@"E:\SecDaily\textes.txt", toWrite);
+            File.WriteAllLines(FileManager.FileTextes, toWrite);
         }
-        */
 
         public static IEnumerable<string> GetFiles()
         {
@@ -628,37 +607,38 @@ namespace Dentogram
             }
         }
 
-        public IEnumerable<string> GetTextes()
+        public IEnumerable<Tuple<string, string>> GetTextes(IEnumerable<string> files)
         {
-            fileIndex = 1;
-            ParsingText parcer = new ParsingText();
+            IEnumerator<string> fileEnumerator = files.GetEnumerator();
+
+            int fileIndex = 1;
             using (var fileStream = new FileStream(FileManager.FileTextes, FileMode.Open))
             {
                 using (var reader = new StreamReader(fileStream))
                 {
-                    string line = parcer.TrimForParsing(reader.ReadLine());
+                    fileEnumerator.MoveNext();
+                    string line = reader.ReadLine();
+                    
                     while (line != null)
                     {
                         fileIndex++;
-                        yield return line;
+                        yield return new Tuple<string, string>(fileEnumerator.Current, line);
+
                         if (fileIndex % 100 == 0)
                         {
                             FilesDescription = $"Loading files[{fileIndex}]...";
                         }
-                        line = parcer.TrimForParsing(reader.ReadLine());
+                        line = reader.ReadLine();
+                        fileEnumerator.MoveNext();
                     }
                 }
             }
         }
 
-        /*
-        public static List<string> GetTextes(List<string> files, out List<string> correctedFiles)
+        public IEnumerable<Tuple<string, string>> ParseAndGetTextes(IEnumerable<string> files)
         {
-            ParsingText parser = new ParsingText();
-
-            var resultFiles = new List<string>();
-
-            List<string> textes = new List<string>();
+            int fileIndex = 1;
+            ParsingText parcer = new ParsingText();
             HtmlParser htmlParser = new HtmlParser();
             foreach (string path in files)
             {
@@ -671,9 +651,8 @@ namespace Dentogram
                             gZipStream.CopyTo(buffStrm);
                             buffStrm.Position = 0;
                             
-                            using (IHtmlDocument document = htmlParser.Parse(buffStrm)) //performance: 34%
+                            using (IHtmlDocument document = htmlParser.Parse(buffStrm))
                             {
-                                //performance: 8.7%
                                 var elements = document.All.OfType<IText>();
                                 string text = elements.Any() 
                                     ? string.Join(Environment.NewLine, elements.Select(x => x.Text)) 
@@ -682,21 +661,26 @@ namespace Dentogram
                                 {
                                     continue;
                                 }
+                                
+                                //string trimText = Regex.Replace(text.ToUpperInvariant(), @"\s+", " ");
+                                text = parcer.TrimForParsing(text);
+                                
+                                if (fileIndex % 100 == 0)
+                                {
+                                    FilesDescription = $"Loading files[{fileIndex}]...";
+                                }
+                                fileIndex++;
 
-                                resultFiles.Add(path);
-                                string trimText = Regex.Replace(text.ToUpperInvariant(), @"\s+", " ");
-                                string parsedText = parser.ParseTable(trimText);
-                                textes.Add(parsedText);
+                                if (!string.IsNullOrEmpty(text))
+                                {
+                                    yield return new Tuple<string, string>(path, text);
+                                }
                             }
                         }
                     }
                 }
             }
-
-            correctedFiles = resultFiles;
-            return textes;
         }
-        */
     }
     
     public class Node : ViewModelBase
