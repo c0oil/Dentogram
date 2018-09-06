@@ -29,14 +29,54 @@ namespace Dentogram
 
             public string Region;
         }
-        
+
+        private const string name = @"NAMES?";
+        private const string rep_person = @"(?:OF REPORTING PER ?SON(?:(?:S|\(S\))(?= |IRS|\b|$))?)";
+        private const string irs_ident = @"(?:I R S|\(?IRS|RS)(?: ?IN?DENT(?:IFICATIOI?N)?(?: ?N(?:O(?:S|\(S\))?|UMBERS?))?| NUMBER)";
+        private const string ss_or_and_1 = @"(?:(?:1 ?)?SS ?O[FR]|AND|OR|1 )";
+        private const string above_per = @"(?:O[FR] ?(?:ABOVE|SUCH)? PERSON(?:S|\(S\))?)";
+        private const string entity = @"(?:\(ENTIT(?:IES|Y)(?: ONLY)?\)?)";
+        private const string see_inst = @"(?:\(SEE INSTRUCTIONS\))";
+
+        /*
+[name][rep_person] [irs_ident] [entit]
+[name][rep_person] [irs_ident] [above_per]
+[name][rep_person] [irs_ident] [above_per] [entit]
+[name][rep_person] [irs_ident] [rep_person]
+[name][rep_person] [irs_ident] [rep_person] [entit]
+
+[name][rep_person] [ss_or_and_1] [irs_ident]
+[name][rep_person] [ss_or_and_1] [irs_ident] [above_per]
+[name][rep_person] [ss_or_and_1] [irs_ident] [above_per] [entit]
+[name][rep_person] [ss_or_and_1] [irs_ident] [rep_person]
+[name][rep_person] [ss_or_and_1] [irs_ident] [rep_person] [entit]
+
+[name][rep_person]
+[name][rep_person] (SEE INSTRUCTIONS)
+[name][rep_person] [entit]
+[name][rep_person] [ss_or_and_1]
+[name][rep_person] [irs_ident]
+[name][rep_person] ([ss_or_and_1] [irs_ident] [above_per])
+
+[name][ss_or_and_1] [irs_ident] [rep_person]
+         */
+
         // Name Person
+        private readonly Regex[] namePersonPrefixRegex =
+        {
+            new Regex($@"{name} ?{rep_person}(?: ?{ss_or_and_1})? ?{irs_ident} ?(?:{entity}|{above_per}(?: ?{entity})?|{rep_person}(?: ?{entity})?)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex($@"{name} ?{rep_person}(?: ?(?:\( ?{ss_or_and_1} ?{irs_ident} ?{above_per} ?\)|{entity}|{ss_or_and_1}|{rep_person}|{see_inst}))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex($@"{name} ?{ss_or_and_1} ?{irs_ident} ?{rep_person}", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex($@"1 {entity}", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+        };
+        /*
         private readonly Regex[] namePersonPrefixRegex =
         {
             new Regex(@"NAMES? OF REPORTING(?: PER ?SONS?\(?S?\)?)(?:(?: [1\(]? ?SS)? ?O[FR]| AND(?:  SS OR)?)?(?: ?(?:I ?R ?S|\(?I?RS|1 IRS)(?: ?IN?DENT(?:IFICATIOI?N)?)? ?(?:NUMBERS?|NO\(?S?S?\)?)?(?: ?O[FR](?: ABOVE| REPORTING| SUCH)?(?: PERSON\(?S?S?\)?)?)?)?(?: ?\(ENTIT(?:Y|IES)(?: ONLY)?\)?)?(?: \((?:SEE INSTRUCTIONS|2)\))?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"NAME (?:AND|OR) IRS(?: IDENTIFICATION)? (?:NO|NUMBER) OF REPORTING PERSONS?", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             new Regex(@"1 \(ENTITIES ONLY\)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
+        */
 
         private readonly Regex[] namePersonValueRegex =
         {
@@ -45,7 +85,7 @@ namespace Dentogram
             new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:SS OR|THE REPORTING PERSON ?\)?)? ?\(? ?(?:NO )?IRS(?: EMPLOYER)? (?:IDENTIFICATION|IDENFITICATION)(?: IRS| FOR)? N(?:O|UMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                        // [name person] IRS IDENTIFICATION NO
             new Regex(@"([\w\s\(\),]{4,}?)IDENTIFICATION NOS OF ABOVE PERSONS", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                                                                           // [name person] IDENTIFICATION NOS OF ABOVE PERSONS
             new Regex(@"([\w\s\(\),]{4,}?)\(? ?(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?|PAYER IDENTIFICATION NUMBER)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER) ?(?:(?:\d{2,2} )?\d{6,8})", RegexOptions.Compiled | RegexOptions.IgnoreCase),   // [name person] [id prefix] [id]
-            new Regex(@"^ ?(?:1 ?\)|1 )?([\w\s\(\),]{4,}?)\(? ?(?:\d{2,2} \d{6,8}|\d{2,2} \d{3,3} \d{4,4}|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9}) ?\)? ?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                             // [start] [1] [name person] [id] [end]
+            new Regex(@"^ ?(?:\( ?[12] ?\)|1 )?([\w\s\(\),]{4,}?)\(? ?(?:\d{2,2} \d{6,8}|\d{2,2} \d{3,3} \d{4,4}|[\dX]{3,3} [\dX]{2,2} [\dX]{4,4}|\d{7,9}) ?\)? ?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                             // [start] [1] [name person] [id] [end]
             new Regex(@"^([\w\s\(\),]{4,}?) (?:ID N(?:A|O(?:T APPLICABLE)?)|IRS|SEE ITEM \d FOR IDENTIFICATION OF THE (?:GENERAL PARTNER|MANAGING MEMBERS)) ?$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                               // [start] [name person] [word] [end]
             new Regex(@"^ ?(?:\d{2,2} \d{6,8} |\d{6,9} |\(? ?1 ?\)|1 |\(VOLUNTARY\)(?: EIN NO)?|\(OPTIONAL\))([\w\s\(\),]{4,})$", RegexOptions.Compiled | RegexOptions.IgnoreCase),                                                                                                         // [start] ([id]|[(word)]) [name person] [end]
             //  PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
