@@ -96,6 +96,8 @@ namespace Dentogram.Clustering
                     
                 "LongestCommonSubstring",
                 "LongestCommonSubsequence",
+                
+                "TEST_Distance",
             };
 
         private static double GetDistance(string x, string y)
@@ -151,6 +153,9 @@ namespace Dentogram.Clustering
                     return Math.Max(x.Length, y.Length) - x.LongestCommonSubstring(y)?.Length ?? 0;
                 case "LongestCommonSubsequence":
                     return Math.Max(x.Length, y.Length) - x.LongestCommonSubsequence(y)?.Length ?? 0;
+
+                case "TEST_Distance":
+                    return TestDistance(x, y, Shindel);
             }
 
             return 0;
@@ -228,6 +233,20 @@ namespace Dentogram.Clustering
             }
 
             return Convert.ToDouble(g1.Intersect(g2).Count()) / Convert.ToDouble(g1.Union(g2).Count());
+        }
+
+        private static double TestDistance(string source, string target, int n)
+        {
+            List<string> g1 = ListNGrams(source, n);
+            List<string> g2 = ListNGrams(target, n);
+            int minCount = Math.Min(g1.Count, g2.Count);
+            if (minCount == 0)
+            {
+                return Math.Max(g1.Count, g2.Count);
+            }
+
+            //return Convert.ToDouble(Convert.ToDouble(g1.Union(g2).Count()) - g1.Intersect(g2).Count());
+            return Convert.ToDouble(Convert.ToDouble(g1.Union(g2).Count()) - g1.Intersect(g2).Count());
         }
     }
 }

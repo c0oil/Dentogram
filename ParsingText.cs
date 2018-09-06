@@ -47,7 +47,7 @@ namespace Dentogram
             ")";
         private static readonly string irs_ident = 
             "(?:" +
-                "I\\. ?R\\. ?S\\.?" +
+                "\\(?I\\. ?R\\. ?S\\.?" +
             "|" +
                 "\\(?IRS" +
             "|" +
@@ -154,15 +154,9 @@ namespace Dentogram
                 "(?:" +
                     $"{entity}" +
                 "|" +
-                    $"{above_per}" +
-                    "(?:" +
-                        $" ?{entity}" +
-                    ")?" +
+                    $"{above_per}(?: ?{entity})?" +
                 "|" +
-                    $"{rep_person}" +
-                    "(?:" +
-                        $" ?{entity}" +
-                    ")?" +
+                    $"{rep_person}(?: ?{entity})?" +
                 ")?", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
             
@@ -210,16 +204,17 @@ namespace Dentogram
 [start] ([id]|[(word)]) [name person] [end]
  */
 
-        private const string nameValue = @"([\w\s\(\),\.]{4,}?)";
+        private const string nameValue = @"[\w\s\(\),\.]{4,}";
         private const string dateValue = @"(?:[A-Z]{3,11} \d{1,2} \d{4,4}|\d{1,2} \d{2,2} \d{2,2})";
         private const string noIrs = @"(?:1|NO IRS IDENTIFICATION N(?:O|UMBER)|NONE|NO EIN|N A|IRS NO N A)";
         private const string datedPrefix = @"(?:U ?A ?D(?:ATED)?|DATED|UTA)";
         private const string irsTaxPrefix = @"(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?|PAYER IDENTIFICATION NUMBER)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER)";
 
-        private readonly Regex[] namePersonValueRegex =
+        public readonly Regex[] namePersonValueRegex =
         {
+
             new Regex(
-                "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                $"({nameValue}?)" + //match
                 "\\( ?" +
                 "(?:" +
                     "1" +
@@ -238,22 +233,36 @@ namespace Dentogram
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
-                "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                $"({nameValue}?)" + //match
                 "(?:" +
                     "U ?A ?D(?:ATED)?" +
                 "|" +
                     "DATED" +
                 "|" +
-                    "UTA) " +
+                    "UTA" +
+                ") " +
                 "(?:" +
-                    "[A-Z]{3,11} \\d{1,2} \\d{4,4}" +
+                    "[A-Z]{3,11} \\d{1,2},? \\d{4,4}" +
                 "|" +
                     "\\d{1,2} \\d{2,2} \\d{2,2}" +
                 ")", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            
+            new Regex(
+                $"({nameValue}?)" + //match
+                $"(?: ?{ss_or_and_1})?" +
+                $" ?{irs_ident} ?" +
+                "(?:" +
+                    $"{entity}" +
+                "|" +
+                    $"{above_per}" +
+                "|" +
+                    $"{rep_person}" +
+                ")?", 
+                RegexOptions.Compiled | RegexOptions.IgnoreCase), 
 
             new Regex(
-                "([\\w\\s\\(\\),\\.]{4,}?)" +
+                $"({nameValue}?)" +
                 "\\(? ?" +
                 "(?:" +
                     "SS OR" +
@@ -262,7 +271,7 @@ namespace Dentogram
                 ")?" +
                 " ?\\(? ?" +
                 "(?:NO )?" +
-                "IRS" +
+                "I\\.?R\\.?S\\.?" +
                 "(?: EMPLOYER)?" +
                 " (?:IDENTIFICATION|IDENFITICATION)" +
                 "(?: IRS| FOR)?" +
@@ -271,12 +280,12 @@ namespace Dentogram
             //new Regex($"{nameValue}\\(? (?: ?{ss_or_and_1})? ?{irs_ident}", RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
-                "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                $"({nameValue}?)" + //match
                 "IDENTIFICATION NOS\\. OF ABOVE PERSONS", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
-                "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                $"({nameValue}?)" + //match
                 "\\(? ?" +
                 "(?:" +
                     "CIK" +
@@ -284,8 +293,7 @@ namespace Dentogram
                     "I\\.?R\\.?S\\.?" +
                     "(?:" +
                         " (?:" +
-                            "I\\.?D\\.?" +
-                            "(?: NO\\.?)?" +
+                            "I\\.?D\\.?(?: NO\\.?)?" +
                         "|" +
                             "EIN" +
                         "|" +
@@ -296,15 +304,12 @@ namespace Dentogram
                     "(?:\\( ?(?:B ?\\) ?)?)?" +
                     "TAX" +
                     "(?:" +
-                        " I\\.?D\\.?" +
-                        "(?: NO\\.?)?" +
+                        " I\\.?D\\.?(?: NO\\.?)?" +
                     "|" +
                         "PAYER IDENTIFICATION NUMBER" +
                     ")?" +
                 "|" +
-                    "I\\.?D\\.?" +
-                    "(?:ENTIFICATION)?" +
-                    "(?: NO\\.?)?" +
+                    "I\\.?D\\.?(?:ENTIFICATION)?(?: NO\\.?)?" +
                 "|" +
                     "NO\\.?" +
                 "|" +
@@ -314,8 +319,7 @@ namespace Dentogram
                 ")" +
                 " ?" +
                 "(?:" +
-                    "(?:\\d{2,2} )?" +
-                    "\\d{6,8}" +
+                    "(?:\\d{2,2} )?\\d{6,8}\\.?" +
                 ")", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
@@ -327,27 +331,29 @@ namespace Dentogram
                     "|" +
                         "1 " +
                     ")?" +
-                    "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                    $"({nameValue}?)" + //match
                     "\\(? ?" +
                     "(?:" +
-                        "\\d{2,2} \\d{6,8}|\\d{2,2} \\d{3,3} \\d{4,4}" +
+                        "\\d{2,2} \\d{6,8}" +
+                    "|" +
+                        "\\d{2,2} \\d{3,3} \\d{4,4}" +
                     "|" +
                         "[\\dX]{3,3} [\\dX]{2,2} [\\dX]{4,4}" +
                     "|" +
-                        "\\d{7,9}) ?\\" +
-                    ")?" +
-                    " ?" +
+                        "\\d{7,9}" +
+                    ")" +
+                    " ?\\)?\\.? ?" +
                 "$", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
                 "^" +
-                    "([\\w\\s\\(\\),\\.]{4,}?)" + //match
+                    $"({nameValue}?)" + //match
                     " " +
                     "(?:" +
                         "ID N\\.?(?:A\\.?|O\\.?(?:T APPLICABLE)?)" +
                     "|" +
-                        "IRS" +
+                        "I\\.?R\\.?S\\.?" +
                     "|" +
                         "SEE ITEM \\d FOR IDENTIFICATION OF THE (?:GENERAL PARTNER|MANAGING MEMBERS)" +
                     ")" +
@@ -365,14 +371,14 @@ namespace Dentogram
                     "|" +
                         "\\(? ?[12] ?\\)" +
                     "|" +
-                        "12] " +
+                        "[12] " +
                     "|" +
                         "\\(VOLUNTARY\\)" +
                         "(?: EIN NO\\.?)?" +
                     "|" +
                         "\\(OPTIONAL\\)" +
                     ")" +
-                    "([\\w\\s\\(\\),\\.]{4,})" + //match
+                    $"({nameValue})" + //match
                 "$", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
             //  PLEASE CREATE A SEPARATE COVER SHEET FOR EACH ENTITY
@@ -561,6 +567,7 @@ namespace Dentogram
                     int iNamePersonValue = namePersonPrefixMatch.Index + namePersonPrefixMatch.Keyword.Length;
                     StringSearchResult namePersonPostfixMatch = ParseFirstByRegexp(trimText.Substring(iNamePersonValue, ParsingTextHelper.NamePersonMaxLength), namePersonPostfixRegex, 0).OffsetResult(iNamePersonValue);
                     string namePersonValueText = namePersonPostfixMatch.IsEmpty ? string.Empty: trimText.Substring(iNamePersonValue, namePersonPostfixMatch.Index - iNamePersonValue);
+
                     StringSearchResult namePersonValueMatch = namePersonPostfixMatch.IsEmpty 
                         ? StringSearchResult.Empty
                         : ParseFirstByRegexp(namePersonValueText, namePersonValueRegex, 1).OffsetResult(iNamePersonValue);

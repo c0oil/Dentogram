@@ -6,7 +6,7 @@
         xmlns:ig="http://schemas.infragistics.com/xaml"
         xmlns:dentogram="clr-namespace:Dentogram"
         mc:Ignorable="d" d:DataContext="{d:DesignInstance dentogram:MainWindowModel}"
-        Title="MainWindow" Height="1200" Width="1900">
+        Title="MainWindow" Height="950" Width="1800">
 
   <Grid x:Name="pnlHide" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
     <Grid.RowDefinitions>
