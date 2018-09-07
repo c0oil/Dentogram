@@ -322,14 +322,12 @@ namespace Dentogram
                 var sw = Stopwatch.StartNew();
 
                 ParsingText parcer = new ParsingText();
-                
-                ParsingText.ParseFirstByRegexp("NAMES OF REPORTING PERSONS I.R.S. Identification Nos. of above persons (entities only). 1 James P. Boyd 2 CHECK", parcer.namePersonPrefixRegex, 0);
-
                 //var fileInfos = ParseAndGetTextes(GetFiles()).
                 var fileInfos = GetTextes(GetFiles()).
                     Where(x => !string.IsNullOrEmpty(x.Item2)).
                     Take(12000).
                     Select(x => new { fileName = x.Item1, text = parcer.TrimForParsing(x.Item2) }).
+                    //Take(2000).
                     SelectMany(x => parcer.ParseBySearch(x.text).Select(parsedResult => new { x.fileName, x.text, parsedResult })).
                     ToList();
             
@@ -393,37 +391,12 @@ namespace Dentogram
                     }).
                     Select(x => new
                     {
-                        toWrite = $"{x.textNamePerson}\t{x.namePerson.Trim()}\t{x.valueNamePerson.Trim()}\t{LastWord(x.valueNamePerson)}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
-                    });
-                    //ToArray();
+                        toWrite = $"{x.textNamePerson}\t{x.valueNamePerson}\t{x.valueNamePerson.Length}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
+                    }).
+                    ToArray();
 
-                //File.WriteAllLines(FileManager.FileResults, matches.Select(x => x.toWrite));
+                File.WriteAllLines(FileManager.FileResults, matches.Select(x => x.toWrite));
                 
-                List<string> toWrite = new List<string>();
-                using (var fileStream = new FileStream(FileManager.FileResults, FileMode.Create))
-                {
-                    using (var writer = new StreamWriter(fileStream))
-                    {
-                        foreach (var match in matches)
-                        {
-                            toWrite.Add(match.toWrite);
-                            if (toWrite.Count > 2000)
-                            {
-                                foreach (string s in toWrite)
-                                {
-                                    writer.WriteLine(s);
-                                    toWrite = new List<string>();
-                                }
-                            }
-                        }
-                        
-                        foreach (string s in toWrite)
-                        {
-                            writer.WriteLine(s);
-                        }
-                    }
-                }
-
                     /*
                 var notParced = fileInfos.
                     Where(x => 
@@ -440,24 +413,24 @@ namespace Dentogram
                     ToList();
                     */
                    
-                //*
+                /*
                 textes = notParcedNamePerson.Select(x => x.text).ToList();
                 files = notParcedNamePerson.Select(x => x.fileName).ToList();
                 parsedRegions = notParcedNamePerson.Select(x => x.text).ToList();
                 dataSets = notParcedNamePerson.Select(x => parcer.TrimForClustering(x.text)).ToList();
-                //*/
+                */
                 /*
                 textes = notParcedAggregatedAmount.Select(x => x.text).ToList();
                 files = notParcedAggregatedAmount.Select(x => x.fileName).ToList();
                 parsedRegions = notParcedAggregatedAmount.Select(x => x.parsedResult.Region).ToList();
                 dataSets = notParcedAggregatedAmount.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
                 */
-                /*
+                //*
                 textes = notParcedPercentOwned.Select(x => x.text).ToList();
                 files = notParcedPercentOwned.Select(x => x.fileName).ToList();
                 parsedRegions = notParcedPercentOwned.Select(x => x.parsedResult.Region).ToList();
                 dataSets = notParcedPercentOwned.Select(x => parcer.TrimForClustering(x.parsedResult.Region)).ToList();
-                */
+                //*/
                 FilesDescription = $"All files: {fileInfos.Count}; Not parced files: Name Person: {notParcedNamePerson.Count}, Amount: {notParcedAggregatedAmount.Count}, Percent: {notParcedPercentOwned.Count}, Time: {timeParsing:mm\\:ss}";
                 MessageBox.Show("Press OK", "Confirmation");
 
@@ -549,7 +522,6 @@ namespace Dentogram
         {
             return new Node(child0, child1) { Name = name };
         }
-
         /*
         public static void WriteFiles()
         {
@@ -572,7 +544,7 @@ namespace Dentogram
             File.WriteAllLines(@"E:\SecDaily\pathesExt.txt", toWrite);
         }
         */
-        /*
+
         public void WriteTextes()
         {
             HtmlParser htmlParser = new HtmlParser();
@@ -622,10 +594,10 @@ namespace Dentogram
                         }
                     }
                 }
+
             }
             File.WriteAllLines(FileManager.FileTextes, toWrite);
         }
-        */
 
         public static IEnumerable<string> GetFiles()
         {
@@ -636,8 +608,8 @@ namespace Dentogram
                     string line = reader.ReadLine();
                     while (line != null)
                     {
-                        yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
-                        //yield return line;
+                        //yield return string.IsNullOrEmpty(line) ? string.Empty: "d" + line.Substring(1);
+                        yield return line;
                         line = reader.ReadLine();
                     }
                 }

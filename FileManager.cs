@@ -8,8 +8,8 @@ namespace Dentogram
 {
     public static class FileManager
     {
-        public const string FileNames = @"D:\work\Dentogram\pathesExt.txt";
-        public const string FileTextes = @"D:\work\Dentogram\textes.txt";
-        public const string FileResults = @"D:\work\Dentogram\ResultFile.txt";
+        public const string FileNames = @"C:\SecDaily\pathesExt.txt";
+        public const string FileTextes = @"C:\SecDaily\textes.txt";
+        public const string FileResults = @"E:\SecDaily\New folder\Dentogram\ResultFile.txt";
     }
 }
