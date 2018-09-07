@@ -54,6 +54,7 @@ namespace Dentogram
 		#region Members
 		
 		private int index;
+		private int regexIndex;
 		private string keyword;
 
 		/// <summary>
@@ -61,9 +62,11 @@ namespace Dentogram
 		/// </summary>
 		/// <param name="index">Index in text</param>
 		/// <param name="keyword">Found keyword</param>
-		public StringSearchResult(int index,string keyword)
+		public StringSearchResult(int index, string keyword, int regexIndex = -1)
 		{
-			this.index=index; this.keyword=keyword;
+			this.index=index; 
+			this.regexIndex=regexIndex; 
+		    this.keyword=keyword;
 		}
 
 
@@ -84,6 +87,10 @@ namespace Dentogram
 			get { return keyword; }
 		}
 
+	    public int RegexIndex
+	    {
+	        get { return regexIndex; }
+	    }
 
 	    public bool IsEmpty => Index == -1;
 

@@ -325,7 +325,7 @@ namespace Dentogram
                 //var fileInfos = ParseAndGetTextes(GetFiles()).
                 var fileInfos = GetTextes(GetFiles()).
                     Where(x => !string.IsNullOrEmpty(x.Item2)).
-                    Take(12000).
+                    //Take(12000).
                     Select(x => new { fileName = x.Item1, text = parcer.TrimForParsing(x.Item2) }).
                     //Take(2000).
                     SelectMany(x => parcer.ParseBySearch(x.text).Select(parsedResult => new { x.fileName, x.text, parsedResult })).
@@ -380,7 +380,10 @@ namespace Dentogram
                     //Select(x => x.First()).
                     Select(x => new
                     {
+                        namePersonTest = $"{x.parsedResult.NamePersonTest}",
+                        namePersonTest1 = $"{x.parsedResult.NamePersonTest1}",
                         namePerson = $"{x.parsedResult.NamePerson}",
+
                         textNamePerson = $"{x.parsedResult.NamePersonPrefix}[{x.parsedResult.NamePerson}]{x.parsedResult.NamePersonPostfix}",
                         textAggregatedAmount = $"{x.parsedResult.AggregatedAmountPrefix}[{x.parsedResult.AggregatedAmount}]{x.parsedResult.AggregatedAmountPostfix}",
                         textPercentOwned = $"{x.parsedResult.PercentOwnedPrefix}[{x.parsedResult.PercentOwned}]{x.parsedResult.PercentOwnedPostfix}",
@@ -391,7 +394,7 @@ namespace Dentogram
                     }).
                     Select(x => new
                     {
-                        toWrite = $"{x.textNamePerson}\t{x.valueNamePerson}\t{x.valueNamePerson.Length}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
+                        toWrite = $"{x.textNamePerson}\t{x.valueNamePerson}\t{x.namePerson}\t{x.namePersonTest}\t{x.namePersonTest1}\t{x.textAggregatedAmount}\t{x.valueAggregatedAmount}\t{x.textPercentOwned}\t{x.valuePercentOwned}\t{x.fileName}"
                     }).
                     ToArray();
 

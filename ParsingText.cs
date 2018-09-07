@@ -15,7 +15,9 @@ namespace Dentogram
             public string NamePersonValue;
             public string NamePersonPostfix;
             public string NamePerson;
+
             public string NamePersonTest;
+            public string NamePersonTest1;
 
             public string AggregatedAmountPrefix;
             public string AggregatedAmountValue;
@@ -36,25 +38,18 @@ namespace Dentogram
             "|" +
                 "\\(S\\)" +
             ")";
-        private static readonly string name = 
-            "NAMES?";
-        private static readonly string rep_person = 
-            "(?:" +
-                $"OF REPORTING PER ?SON{ss}?" +
-                "(?:" +
-                    " ?[\\.,]" +
-                ")?" +
-            ")";
-        private static readonly string irs_ident = 
+        private static readonly string irs = 
             "(?:" +
                 "\\(?I\\. ?R\\. ?S\\.?" +
             "|" +
                 "\\(?IRS" +
             "|" +
                 "RS" +
-            ")" +
+            ")";
+
+        private static readonly string ident = 
             "(?:" +
-                " ?IN?DENT" +
+                "IN?DENT" +
                 "(?:" +
                     "IFICATIOI?N" +
                 ")?" +
@@ -67,20 +62,37 @@ namespace Dentogram
                     ")" +
                 ")?" +
             "|" +
-                " NUMBER" +
+                "NUMBER" +
             ")";
+
+        private static readonly string name = 
+            "NAMES?";
+
+        private static readonly string rep_person = 
+            "(?:" +
+                $"OF REPORTING PER ?SON{ss}?" +
+                "(?:" +
+                    " ?[\\.,]" +
+                ")?" +
+            ")";
+
+        private static readonly string irs_ident = 
+            $"(?:{irs} ?{ident})";
+
         private static readonly string ss_or_and_1 = 
             "(?:" +
                 "(?:" +
                     "1\\.? ?" +
                 ")?" +
-                "S\\.S\\. ?O[FR]" +
+                "S\\.?S\\.? ?O[FR]" +
             "|" +
                 "AND" +
             "|" +
                 "OR" +
             "|" +
-                "1 " +
+                "(?:" +
+                    "1\\.? " +
+                ")?" +
             ")";
         private static readonly string above_per = 
             "(?:" +
@@ -219,7 +231,7 @@ namespace Dentogram
                 "(?:" +
                     "1" +
                 "|" +
-                    "NO IRS IDENTIFICATION N(?:O|UMBER)" +
+                    "NO IRS IDENTIFICATION N(?:O\\.?|UMBER)" +
                 "|" +
                     "NONE" +
                 "|" +
@@ -228,6 +240,10 @@ namespace Dentogram
                     "N A" +
                 "|" +
                     "IRS NO N A" +
+                "|" +
+                    "THE REPORTING PERSON" +
+                "|" +
+                    "SEE ITEM \\d" +
                 ")" +
                 " ?\\)", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
@@ -240,6 +256,8 @@ namespace Dentogram
                     "DATED" +
                 "|" +
                     "UTA" +
+                "|" +
+                    "DTD" +
                 ") " +
                 "(?:" +
                     "[A-Z]{3,11} \\d{1,2},? \\d{4,4}" +
@@ -251,7 +269,7 @@ namespace Dentogram
             new Regex(
                 $"({nameValue}?)" + //match
                 $"(?: ?{ss_or_and_1})?" +
-                $" ?{irs_ident} ?" +
+                $" ?{irs} ?{ident} ?" +
                 "(?:" +
                     $"{entity}" +
                 "|" +
@@ -259,8 +277,18 @@ namespace Dentogram
                 "|" +
                     $"{rep_person}" +
                 ")?", 
-                RegexOptions.Compiled | RegexOptions.IgnoreCase), 
+                RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
+            new Regex(
+                $"({nameValue}?)" + //match
+                "(?:" +
+                    "IDENTIFICATION NOS\\. OF ABOVE PERSONS" +
+                "|" +
+                    "NOT INDIVIDUALLY," +
+                ")", 
+                RegexOptions.Compiled | RegexOptions.IgnoreCase),
+
+            /*
             new Regex(
                 $"({nameValue}?)" +
                 "\\(? ?" +
@@ -277,13 +305,9 @@ namespace Dentogram
                 "(?: IRS| FOR)?" +
                 " N(?:O|UMBER)", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                */
             //new Regex($"{nameValue}\\(? (?: ?{ss_or_and_1})? ?{irs_ident}", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-
-            new Regex(
-                $"({nameValue}?)" + //match
-                "IDENTIFICATION NOS\\. OF ABOVE PERSONS", 
-                RegexOptions.Compiled | RegexOptions.IgnoreCase),
-
+            
             new Regex(
                 $"({nameValue}?)" + //match
                 "\\(? ?" +
@@ -470,7 +494,10 @@ namespace Dentogram
                         NamePersonValue = namePersonValueMatch.Keyword,
                         NamePersonPostfix = namePersonPostfixMatch.Keyword,
                         NamePerson = Test(trimText, namePersonPrefixMatch, namePersonPostfixMatch),
+
                         NamePersonTest = Test1(trimText, namePersonPrefixMatch, namePersonValueMatch, namePersonPostfixMatch),
+                        NamePersonTest1 = namePersonValueMatch.RegexIndex.ToString(),
+                        //NamePersonTest = namePersonValueMatch.RegexIndex.ToString(),
 
                         AggregatedAmountPrefix = aggregatedAmountPrefixResult.Keyword,
                         AggregatedAmountValue = aggregatedAmountValueResult.Keyword,
@@ -516,7 +543,7 @@ namespace Dentogram
                 return valueResult.IsEmpty
                     ? string.Empty
                     : namePersonRegion.Substring(prefixResult.Index + prefixResult.Keyword.Length, valueResult.Index - (prefixResult.Index + prefixResult.Keyword.Length)) +
-                      "{0}" +
+                      $"{{{valueResult.RegexIndex}}}" +
                       namePersonRegion.Substring(valueResult.Index + valueResult.Keyword.Length, postfixResult.Index - (valueResult.Index + valueResult.Keyword.Length));
             }
             catch (Exception e)
@@ -605,6 +632,7 @@ namespace Dentogram
 
         private static List<StringSearchResult> ParseAllByRegexp(string text, IEnumerable<Regex> regexps)
         {
+            int regexIndex = 0;
             foreach (Regex regexp in regexps)
             {
                 var matches = regexp.Matches(text);
@@ -612,9 +640,10 @@ namespace Dentogram
                 {
                     return matches.
                         OfType<Match>().
-                        Select(match => new StringSearchResult(match.Index, match.Value)).
+                        Select(match => new StringSearchResult(match.Index, match.Value, regexIndex)).
                         ToList();
                 }
+                regexIndex++;
             }
 
             return new List<StringSearchResult>();
@@ -627,13 +656,16 @@ namespace Dentogram
 
         public static StringSearchResult ParseFirstByRegexp(string regionText, IEnumerable<Regex> regexps, int groupIndex)
         {
+            int regexIndex = 0;
             foreach (Regex regexp in regexps)
             {
                 Match match = regexp.Match(regionText);
                 if (match.Success)
                 {
-                    return new StringSearchResult(match.Groups[groupIndex].Index, match.Groups[groupIndex].Value);
+                    return new StringSearchResult(match.Groups[groupIndex].Index, match.Groups[groupIndex].Value, regexIndex);
                 }
+
+                regexIndex++;
             }
 
             return StringSearchResult.Empty;
@@ -664,7 +696,7 @@ namespace Dentogram
 
         public static StringSearchResult OffsetResult(this StringSearchResult result, int offset)
         {
-            return result.IsEmpty ? result : new StringSearchResult(result.Index + offset, result.Keyword);
+            return result.IsEmpty ? result : new StringSearchResult(result.Index + offset, result.Keyword, result.RegexIndex);
         }
     }
 }
