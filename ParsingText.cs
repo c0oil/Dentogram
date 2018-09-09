@@ -32,6 +32,7 @@ namespace Dentogram
             public string Region;
         }
 
+
         private static readonly string ss = 
             "(?:" +
                 "S" +
@@ -40,9 +41,7 @@ namespace Dentogram
             ")";
         private static readonly string irs = 
             "(?:" +
-                "\\(?I\\. ?R\\. ?S\\.?" +
-            "|" +
-                "\\(?IRS" +
+                "\\(?I\\.? ?R\\.? ?S\\.?" +
             "|" +
                 "RS" +
             ")";
@@ -215,45 +214,45 @@ namespace Dentogram
 [start] [name person] [word] [end]
 [start] ([id]|[(word)]) [name person] [end]
  */
-
+ 
+        private const string no = "NO\\.?";
         private const string nameValue = @"[\w\s\(\),\.]{4,}";
-        private const string dateValue = @"(?:[A-Z]{3,11} \d{1,2} \d{4,4}|\d{1,2} \d{2,2} \d{2,2})";
-        private const string noIrs = @"(?:1|NO IRS IDENTIFICATION N(?:O|UMBER)|NONE|NO EIN|N A|IRS NO N A)";
-        private const string datedPrefix = @"(?:U ?A ?D(?:ATED)?|DATED|UTA)";
-        private const string irsTaxPrefix = @"(?:CIK|I ?R ?S(?: (?:ID(?: NO)?|EIN|NO))?|(?:\( ?(?:B ?\) ?)?)?TAX(?: ID(?: NO)?|PAYER IDENTIFICATION NUMBER)?|ID(?:ENTIFICATION)?(?: NO)?|NO|EIN(?: NO)?|FEDERAL IDENTIFICATION NUMBER)";
 
         public readonly Regex[] namePersonValueRegex =
         {
 
             new Regex(
                 $"({nameValue}?)" + //match
-                "\\( ?" +
-                "(?:" +
-                    "1" +
-                "|" +
-                    "NO IRS IDENTIFICATION N(?:O\\.?|UMBER)" +
-                "|" +
-                    "NONE" +
-                "|" +
-                    "NO EIN" +
-                "|" +
-                    "N A" +
-                "|" +
-                    "IRS NO N A" +
-                "|" +
-                    "THE REPORTING PERSON" +
-                "|" +
-                    "SEE ITEM \\d" +
-                ")" +
-                " ?\\)", 
+                    "\\( ?" +
+                    "(?:" +
+                        "1" +
+                    "|" +
+                        "N"+
+                        "(?:"+
+                            "O IRS IDENTIFICATION N(?:O\\.?|UMBER)" +
+                        "|" +
+                            "ONE" +
+                        "|" +
+                            "O EIN" +
+                        "|" +
+                            " A" +
+                        ")"+
+                    "|" +
+                        "IRS NO N A" +
+                    "|" +
+                        "THE REPORTING PERSON" +
+                    "|" +
+                        "SEE ITEM \\d" +
+                    ")" +
+                    " ?\\)", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
                 $"({nameValue}?)" + //match
                 "(?:" +
-                    "U ?A ?D(?:ATED)?" +
-                "|" +
                     "DATED" +
+                "|" +
+                    "U ?A ?D(?:ATED)?" +
                 "|" +
                     "UTA" +
                 "|" +
@@ -265,79 +264,50 @@ namespace Dentogram
                     "\\d{1,2} \\d{2,2} \\d{2,2}" +
                 ")", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            
-            new Regex(
-                $"({nameValue}?)" + //match
-                $"(?: ?{ss_or_and_1})?" +
-                $" ?{irs} ?{ident} ?" +
-                "(?:" +
-                    $"{entity}" +
-                "|" +
-                    $"{above_per}" +
-                "|" +
-                    $"{rep_person}" +
-                ")?", 
-                RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
                 $"({nameValue}?)" + //match
                 "(?:" +
+                    $"(?: ?{ss_or_and_1})? ?{irs} ?{ident} ?" +
+                "|" +
                     "IDENTIFICATION NOS\\. OF ABOVE PERSONS" +
                 "|" +
                     "NOT INDIVIDUALLY," +
+                "|" +
+                    "CIK " +
                 ")", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
-
-            /*
-            new Regex(
-                $"({nameValue}?)" +
-                "\\(? ?" +
-                "(?:" +
-                    "SS OR" +
-                "|" +
-                    "THE REPORTING PERSON ?\\)?" +
-                ")?" +
-                " ?\\(? ?" +
-                "(?:NO )?" +
-                "I\\.?R\\.?S\\.?" +
-                "(?: EMPLOYER)?" +
-                " (?:IDENTIFICATION|IDENFITICATION)" +
-                "(?: IRS| FOR)?" +
-                " N(?:O|UMBER)", 
-                RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                */
-            //new Regex($"{nameValue}\\(? (?: ?{ss_or_and_1})? ?{irs_ident}", RegexOptions.Compiled | RegexOptions.IgnoreCase),
             
             new Regex(
                 $"({nameValue}?)" + //match
                 "\\(? ?" +
                 "(?:" +
-                    "CIK" +
-                "|" +
-                    "I\\.?R\\.?S\\.?" +
-                    "(?:" +
-                        " (?:" +
-                            "I\\.?D\\.?(?: NO\\.?)?" +
-                        "|" +
-                            "EIN" +
-                        "|" +
-                            "NO\\.?" +
-                        ")" +
-                    ")?" +
-                "|" +
                     "(?:\\( ?(?:B ?\\) ?)?)?" +
                     "TAX" +
                     "(?:" +
-                        " I\\.?D\\.?(?: NO\\.?)?" +
+                        $" I\\.?D\\.?(?: {no})?" +
                     "|" +
                         "PAYER IDENTIFICATION NUMBER" +
                     ")?" +
                 "|" +
-                    "I\\.?D\\.?(?:ENTIFICATION)?(?: NO\\.?)?" +
+                    $"I\\.?D\\.?(?:ENTIFICATION)?(?: {no})?" +
                 "|" +
-                    "NO\\.?" +
+                    "I\\.?R\\.?S\\.?" +
+                    "(?:" +
+                        " (?:" +
+                            $"I\\.?D\\.?(?: {no})?" +
+                        "|" +
+                            "EIN" +
+                        "|" +
+                            $"{no}" +
+                        ")" +
+                    ")?" +
                 "|" +
-                    "EIN(?: NO\\.?)?" +
+                    $"EIN(?: {no})?" +
+                "|" +
+                    $"{no}" +
+                //"|" +
+                //    "CIK" +
                 "|" +
                     "FEDERAL IDENTIFICATION NUMBER" +
                 ")" +
@@ -360,11 +330,11 @@ namespace Dentogram
                     "(?:" +
                         "\\d{2,2} \\d{6,8}" +
                     "|" +
+                        "\\d{7,9}" +
+                    "|" +
                         "\\d{2,2} \\d{3,3} \\d{4,4}" +
                     "|" +
                         "[\\dX]{3,3} [\\dX]{2,2} [\\dX]{4,4}" +
-                    "|" +
-                        "\\d{7,9}" +
                     ")" +
                     " ?\\)?\\.? ?" +
                 "$", 
