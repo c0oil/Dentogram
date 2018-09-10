@@ -254,7 +254,7 @@ namespace Dentogram
                 "|" +
                     "U ?A ?D(?:ATED)?" +
                 "|" +
-                    "UTA" +
+                    "U ?T ?[AD](?: DATED)?" +
                 "|" +
                     "DTD" +
                 ") " +
@@ -336,8 +336,7 @@ namespace Dentogram
                     "|" +
                         "[\\dX]{3,3} [\\dX]{2,2} [\\dX]{4,4}" +
                     ")" +
-                    " ?\\)?\\.? ?" +
-                "$", 
+                    " ?\\)?\\.? ?", 
                 RegexOptions.Compiled | RegexOptions.IgnoreCase),
 
             new Regex(
@@ -380,8 +379,7 @@ namespace Dentogram
 
         private readonly Regex[] namePersonPostfixRegex =
         {
-            new Regex(@"\(?(?:2|14)\.?\)?(?: ?\( ?a ?\))? ?(?:CHECK|(?:IF A )?MEMBER)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-            new Regex(@"CHECK THE APPROPRIATE", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+            new Regex(@"(?:\(?(?:2|14)\.?\)?(?: ?\( ?a ?\))? ?(?:CHECK|(?:IF A )?MEMBER)|CHECK THE APPROPRIATE)", RegexOptions.Compiled | RegexOptions.IgnoreCase),
         };
         
         // Aggregated Amount
@@ -411,9 +409,6 @@ namespace Dentogram
         public string TrimForParsing(string text)
         {
             string trimText = text;
-            //string trimText = TrimSigns(text);
-            //string trimText = punctuationRegex.Replace(text, " ");
-            //string trimText = Regex.Replace(text, @"(?<=\D)[\,\.](?=\D)|(?<=\D)[\,\.](?=\d)|(?<=\d)[\,\.](?=\D)", " ");
             trimText = Regex.Replace(trimText, @"\.{2,}|,{2,}", "");
             trimText = Regex.Replace(trimText, "_", ""); // Replace separately cause '_' include in \w
             trimText = Regex.Replace(trimText, @"[^\w\s\.,\(\)]", " ");
